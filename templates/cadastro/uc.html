@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}{{ object }} · FaturaCerta{% endblock %}
+{% block content %}
+<div class="cabecalho">
+  <div><h1>{{ object }}</h1><p><a href="{% url 'cadastro:cliente' object.cliente_id %}">{{ object.cliente }}</a> · {{ object.concessionaria.nome }}</p></div>
+  <div class="acoes">
+    <a class="botao" href="{% url 'cadastro:uc_editar' object.pk %}">Editar UC</a>
+    <a class="botao principal" href="{% url 'cadastro:usina_nova' %}?uc={{ object.pk }}">Nova usina nesta UC</a>
+  </div>
+</div>
+
+{% if pendencias %}
+<div class="aviso" role="status"><strong>Cadastro incompleto.</strong> Para ligar todas as regras de auditoria, preencha:
+  <ul>{% for p in pendencias %}<li>{{ p }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+<dl class="ficha">
+  <div><dt>Número da UC</dt><dd>{{ object.numero_uc }}</dd></div>
+  <div><dt>Código do cliente</dt><dd>{{ object.codigo_cliente|default:"—" }}</dd></div>
+  <div><dt>Grupo / subgrupo</dt><dd>{{ object.grupo }} {{ object.subgrupo }}</dd></div>
+  <div><dt>Tipo de ligação</dt><dd>{{ object.get_tipo_ligacao_display|default:"—" }}{% if object.custo_disponibilidade_kwh %} ({{ object.custo_disponibilidade_kwh }} kWh mínimo){% endif %}</dd></div>
+  <div><dt>Modalidade tarifária</dt><dd>{{ object.get_modalidade_tarifaria_display }}</dd></div>
+  <div><dt>Demanda contratada</dt><dd>{% if object.demanda_contratada_kw %}{{ object.demanda_contratada_kw }} kW{% else %}—{% endif %}</dd></div>
+  <div><dt>Endereço</dt><dd>{{ object.logradouro }} {{ object.numero }} {{ object.bairro }}</dd></div>
+  <div><dt>Município</dt><dd>{{ object.municipio|default:"—" }}{% if object.uf %}/{{ object.uf }}{% endif %}</dd></div>
+  <div><dt>E-mail da fatura</dt><dd>{{ object.email_fatura|default:"—" }}</dd></div>
+</dl>
+
+<h2>Regras de auditoria nesta UC</h2>
+<table class="itens">
+  <thead><tr><th>Regra</th><th>Situação</th><th>O que falta</th></tr></thead>
+  <tbody>{% for r in regras %}
+  <tr>
+    <td>{{ r.nome }}</td>
+    <td>{% if r.nao_se_aplica %}<span class="selo neutro">não se aplica</span>{% elif r.ativa %}<span class="selo confere">ativa</span>{% else %}<span class="selo diverge">desligada</span>{% endif %}</td>
+    <td class="secundario">{% if not r.nao_se_aplica %}{{ r.faltando|join:", " }}{% endif %}</td>
+  </tr>
+  {% endfor %}</tbody>
+</table>
+
+<h2>Saldo de créditos</h2>
+{% if lotes %}
+<table class="itens">
+  <thead><tr><th>Mês de geração</th><th>Posto</th><th class="num">Gerado (kWh)</th><th class="num">Saldo (kWh)</th><th>Validade</th></tr></thead>
+  <tbody>{% for l in lotes %}
+  <tr><td>{{ l.mes_referencia|date:"m/Y" }}</td><td>{{ l.posto|default:"—" }}</td><td class="num">{{ l.kwh_gerado }}</td><td class="num">{{ l.kwh_saldo }}</td><td>{{ l.validade|date:"m/Y" }}</td></tr>
+  {% endfor %}</tbody>
+</table>
+{% else %}<p class="secundario">Nenhum lote de créditos registrado.</p>{% endif %}
+<form method="post" action="{% url 'cadastro:lote_novo' object.pk %}">
+  {% csrf_token %}
+  <fieldset><legend>Adicionar lote de créditos</legend>
+    <div class="grade-meses" style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));">
+      {% for field in form_lote %}{% include "cadastro/_campo.html" %}{% endfor %}
+    </div>
+    <button class="botao" type="submit">Adicionar lote</button>
+  </fieldset>
+</form>
+{% endblock %}

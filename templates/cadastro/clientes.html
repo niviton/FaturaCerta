@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Clientes · FaturaCerta{% endblock %}
+{% block content %}
+<div class="cabecalho">
+  <div><h1>Clientes</h1><p>{{ paginator.count }} cliente{{ paginator.count|pluralize }} cadastrado{{ paginator.count|pluralize }}</p></div>
+  <div class="acoes"><a class="botao principal" href="{% url 'cadastro:cliente_novo' %}">Novo cliente</a></div>
+</div>
+<form class="busca" role="search" method="get">
+  <label class="pular" for="q">Buscar cliente</label>
+  <input type="search" id="q" name="q" value="{{ request.GET.q }}" placeholder="Nome, CPF/CNPJ ou número da UC">
+  <button class="botao" type="submit">Buscar</button>
+</form>
+{% if object_list %}
+<div class="rolagem">
+<table class="itens">
+  <thead><tr><th>Cliente</th><th>CPF/CNPJ</th><th class="num">UCs</th><th>LGPD</th></tr></thead>
+  <tbody>
+  {% for c in object_list %}
+  <tr>
+    <td><a href="{% url 'cadastro:cliente' c.pk %}">{{ c.nome }}</a>{% if not c.ativo %} <span class="selo neutro">inativo</span>{% endif %}</td>
+    <td>{{ c.documento }}</td>
+    <td class="num">{{ c.n_ucs }}</td>
+    <td>{% if c.consentimento_vigente %}<span class="selo confere">consentimento registrado</span>{% else %}<span class="selo diverge">sem consentimento</span>{% endif %}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p>Nenhum cliente encontrado. <a href="{% url 'cadastro:cliente_novo' %}">Cadastre o primeiro cliente</a> para começar a conferir as faturas.</p>
+{% endif %}
+{% endblock %}

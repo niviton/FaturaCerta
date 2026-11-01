@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}{{ object.nome }} · FaturaCerta{% endblock %}
+{% block content %}
+<div class="cabecalho">
+  <div><h1>{{ object.nome }}</h1><p>CPF/CNPJ {{ object.documento }}</p></div>
+  <div class="acoes">
+    <a class="botao" href="{% url 'cadastro:cliente_editar' object.pk %}">Editar cliente</a>
+    <a class="botao principal" href="{% url 'cadastro:uc_nova' %}?cliente={{ object.pk }}">Nova UC</a>
+  </div>
+</div>
+
+<dl class="ficha">
+  <div><dt>Contato</dt><dd>{{ object.contato_nome|default:"—" }}</dd></div>
+  <div><dt>E-mail</dt><dd>{{ object.email|default:"—" }}</dd></div>
+  <div><dt>Telefone</dt><dd>{{ object.telefone|default:"—" }}</dd></div>
+  <div><dt>WhatsApp</dt><dd>{{ object.whatsapp|default:"—" }}</dd></div>
+</dl>
+
+<h2>Unidades consumidoras</h2>
+{% if ucs %}
+<div class="rolagem"><table class="itens">
+  <thead><tr><th>UC</th><th>Código do cliente</th><th>Concessionária</th><th>Grupo</th><th>Município</th></tr></thead>
+  <tbody>{% for uc in ucs %}
+  <tr><td><a href="{% url 'cadastro:uc' uc.pk %}">{{ uc }}</a></td><td>{{ uc.codigo_cliente|default:"—" }}</td>
+      <td>{{ uc.concessionaria.nome }}</td><td>{{ uc.subgrupo|default:uc.grupo }}</td><td>{{ uc.municipio|default:"—" }}</td></tr>
+  {% endfor %}</tbody>
+</table></div>
+{% else %}<p>Nenhuma UC ainda. <a href="{% url 'cadastro:uc_nova' %}?cliente={{ object.pk }}">Cadastre a primeira UC</a>.</p>{% endif %}
+
+<h2>Usinas</h2>
+{% if usinas %}
+<table class="itens">
+  <thead><tr><th>Usina</th><th>UC geradora</th><th>Enquadramento</th><th class="num">kWp</th></tr></thead>
+  <tbody>{% for u in usinas %}
+  <tr><td><a href="{% url 'cadastro:usina' u.pk %}">{{ u.nome }}</a></td><td>{{ u.uc_geradora }}</td>
+      <td>{{ u.enquadramento|default:"—" }}</td><td class="num">{{ u.potencia_kwp|default:"—" }}</td></tr>
+  {% endfor %}</tbody>
+</table>
+{% else %}<p class="secundario">Nenhuma usina com UC geradora deste cliente.</p>{% endif %}
+
+<h2>Consentimento LGPD</h2>
+{% with c=object.consentimento_vigente %}
+{% if c %}
+<p class="aviso ok">Termo versão {{ c.versao_termo }} aceito em {{ c.data|date:"d/m/Y H:i" }}{% if c.ip %}, IP {{ c.ip }}{% endif %}.</p>
+{% else %}
+<p class="aviso">Sem consentimento registrado. Sem ele, não processamos as faturas deste titular.</p>
+{% endif %}
+{% endwith %}
+<form method="post" action="{% url 'cadastro:consentimento' object.pk %}" class="formulario">
+  {% csrf_token %}
+  {% for field in form_consentimento %}{% include "cadastro/_campo.html" %}{% endfor %}
+  <button class="botao" type="submit">Registrar consentimento</button>
+</form>
+{% endblock %}

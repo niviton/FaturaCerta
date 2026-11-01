@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(winget install --id OpenJS.NodeJS.LTS -e --silent --accept-package-agreements --accept-source-agreements)",
+      "PowerShell(winget install --id Python.Python.3.12 -e --silent --accept-package-agreements --accept-source-agreements)",
+      "PowerShell($env:Path = [Environment]::GetEnvironmentVariable\\('Path','Machine'\\) + ';' + [Environment]::GetEnvironmentVariable\\('Path','User'\\); foreach \\($q in 'django','python testing','pdf extraction','postgres','frontend design','docker','security'\\) { \"=== $q ===\"; npx -y skills find $q 2>&1 | Out-String })",
+      "PowerShell($env:Path = [Environment]::GetEnvironmentVariable\\('Path','Machine'\\) + ';' + [Environment]::GetEnvironmentVariable\\('Path','User'\\); npx -y skills add vercel-labs/skills@find-skills -g -y 2>&1 | Select-Object -Last 8; py -3.12 --version)",
+      "PowerShell($env:Path = [Environment]::GetEnvironmentVariable\\('Path','Machine'\\) + ';' + [Environment]::GetEnvironmentVariable\\('Path','User'\\); npx -y skills add vercel-labs/skills@find-skills -g -y -a claude-code 2>&1 | Select-Object -Last 8; ls ~/.claude/skills)",
+      "PowerShell($env:Path = [Environment]::GetEnvironmentVariable\\('Path','Machine'\\) + ';' + [Environment]::GetEnvironmentVariable\\('Path','User'\\); foreach \\($s in 'anthropics/skills@frontend-design','anthropics/knowledge-work-plugins@view-pdf','affaan-m/ecc@django-patterns','affaan-m/ecc@django-security','affaan-m/ecc@django-tdd','affaan-m/ecc@django-celery','wshobson/agents@python-testing-patterns','wshobson/agents@postgresql-table-design','affaan-m/ecc@docker-patterns','getsentry/skills@django-access-review','addyosmani/agent-skills@security-and-hardening'\\) { npx -y skills add $s -g -y -a claude-code 2>&1 | Select-String '✓|✗|Failed' })",
+      "PowerShell(winget install --id Docker.DockerDesktop -e --silent --accept-package-agreements --accept-source-agreements)",
+      "Bash(py -3.12 -m venv .venv)",
+      "Bash(.venv/Scripts/python -m pip install -q -r requirements.txt)",
+      "Bash(.venv/Scripts/python -m django --version)",
+      "Bash(.venv/Scripts/python manage.py makemigrations core accounts cadastro)",
+      "Bash(.venv/Scripts/python -m pytest)",
+      "Bash(.venv/Scripts/ruff check *)"
+    ]
+  }
+}

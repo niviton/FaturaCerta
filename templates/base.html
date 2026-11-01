@@ -1,0 +1,50 @@
+{% load static %}<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="htmx-config" content='{"includeIndicatorStyles": false}'>
+  <title>{% block title %}FaturaCerta{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  {% if tenant and tenant.cor_marca %}<style>:root { --marca: {{ tenant.cor_marca }}; }</style>{% endif %}
+  <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js" defer></script>
+</head>
+<body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+  <a class="pular" href="#conteudo">Pular para o conteúdo</a>
+  {% block faixa %}
+  <header class="faixa">
+    <div class="faixa-interna">
+      <a class="marca" href="{% url 'home' %}">
+        {% if tenant and tenant.logo %}<img src="{{ tenant.logo.url }}" alt="">{% endif %}
+        {% if tenant %}{{ tenant }}{% else %}FaturaCerta{% endif %}
+      </a>
+      {% if user.is_authenticated and user.is_equipe %}
+      {% with p=request.path %}
+      <nav aria-label="Principal">
+        <a href="{% url 'cadastro:clientes' %}" {% if '/cadastro/' in p and '/integradora/' not in p %}aria-current="page"{% endif %}>Clientes e usinas</a>
+        {% if user.is_gestor %}<a href="{% url 'cadastro:integradora' %}" {% if '/integradora/' in p %}aria-current="page"{% endif %}>Configurações</a>{% endif %}
+      </nav>
+      {% endwith %}
+      {% endif %}
+      {% if user.is_authenticated %}
+      <div class="usuario">
+        <span>{{ user.get_full_name|default:user.username }}</span>
+        <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit">Sair</button></form>
+      </div>
+      {% endif %}
+    </div>
+  </header>
+  {% endblock %}
+  <main id="conteudo">
+    {% if messages %}
+    <ul class="mensagens">
+      {% for m in messages %}<li class="aviso {% if m.tags == 'success' %}ok{% endif %}" role="status">{{ m }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

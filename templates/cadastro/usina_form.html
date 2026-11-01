@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}{{ titulo }} · FaturaCerta{% endblock %}
+{% block content %}
+<div class="cabecalho"><h1>{{ titulo }}</h1></div>
+<form method="post" class="formulario" novalidate>
+  {% csrf_token %}
+  {% if form.non_field_errors %}<div class="aviso" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  {% for field in form %}{% if not field.name|slice:":4" == "esp_" %}{% include "cadastro/_campo.html" %}{% endif %}{% endfor %}
+
+  <fieldset><legend>Geração esperada por mês (kWh)</legend>
+    <div class="grade-meses">{% for field in form.campos_esperada %}{% include "cadastro/_campo.html" %}{% endfor %}</div>
+  </fieldset>
+
+  <fieldset><legend>UCs beneficiárias (rateio)</legend>
+    <p class="secundario">A soma dos percentuais deve dar 100%. Deixe vazio se todos os créditos ficam na UC geradora.</p>
+    {{ rateios.management_form }}
+    {% if rateios.non_form_errors %}<div class="aviso" role="alert">{{ rateios.non_form_errors }}</div>{% endif %}
+    <div id="rateios">
+    {% for f in rateios %}
+      <div class="linha-form">
+        {{ f.id }}
+        <div class="campo"><label for="{{ f.uc.id_for_label }}">UC</label>{{ f.uc }}{{ f.uc.errors }}</div>
+        <div class="campo"><label for="{{ f.percentual.id_for_label }}">%</label>{{ f.percentual }}{{ f.percentual.errors }}</div>
+        <div class="campo check">{% if f.instance.pk %}<label for="{{ f.DELETE.id_for_label }}">{{ f.DELETE }} remover</label>{% endif %}</div>
+      </div>
+    {% endfor %}
+    </div>
+    <template id="rateio-vazio">
+      <div class="linha-form">
+        <div class="campo"><label for="{{ rateios.empty_form.uc.id_for_label }}">UC</label>{{ rateios.empty_form.uc }}</div>
+        <div class="campo"><label for="{{ rateios.empty_form.percentual.id_for_label }}">%</label>{{ rateios.empty_form.percentual }}</div>
+        <div></div>
+      </div>
+    </template>
+    <button type="button" class="botao" id="mais-rateio">Adicionar UC beneficiária</button>
+  </fieldset>
+
+  <div class="acoes" style="margin-top:1.5rem">
+    <button type="submit" class="botao principal">Salvar usina</button>
+    <a class="botao" href="javascript:history.back()">Cancelar</a>
+  </div>
+</form>
+<script>
+document.getElementById("mais-rateio").addEventListener("click", function () {
+  var total = document.getElementById("id_rateios-TOTAL_FORMS");
+  var html = document.getElementById("rateio-vazio").innerHTML.replace(/__prefix__/g, total.value);
+  document.getElementById("rateios").insertAdjacentHTML("beforeend", html);
+  total.value = parseInt(total.value, 10) + 1;
+});
+</script>
+{% endblock %}

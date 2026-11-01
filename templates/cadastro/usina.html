@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}{{ object.nome }} · FaturaCerta{% endblock %}
+{% block content %}
+<div class="cabecalho">
+  <div><h1>{{ object.nome }}</h1><p><a href="{% url 'cadastro:cliente' object.uc_geradora.cliente_id %}">{{ object.uc_geradora.cliente }}</a> · geradora {{ object.uc_geradora }}</p></div>
+  <div class="acoes"><a class="botao" href="{% url 'cadastro:usina_editar' object.pk %}">Editar usina</a></div>
+</div>
+
+{% if object.enquadramento_divergente_da_data %}
+<p class="aviso">O enquadramento {{ object.enquadramento }} foi fixado manualmente, mas a data do protocolo indica {{ object.enquadramento_pela_data }}. Confira o parecer de acesso.</p>
+{% endif %}
+
+<dl class="ficha">
+  <div><dt>Enquadramento</dt><dd>{{ object.enquadramento|default:"—" }}{% if object.enquadramento_manual %} (manual){% endif %}</dd></div>
+  <div><dt>Protocolo do pedido de acesso</dt><dd>{{ object.data_protocolo|date:"d/m/Y"|default:"—" }}</dd></div>
+  <div><dt>Tipo</dt><dd>{{ object.get_tipo_display }}</dd></div>
+  <div><dt>Potência instalada</dt><dd>{% if object.potencia_kwp %}{{ object.potencia_kwp }} kWp{% else %}—{% endif %}</dd></div>
+  <div><dt>Potência do inversor</dt><dd>{% if object.potencia_inversor_kw %}{{ object.potencia_inversor_kw }} kW{% else %}—{% endif %}</dd></div>
+  <div><dt>Módulos</dt><dd>{{ object.numero_modulos|default:"—" }}</dd></div>
+  <div><dt>Conexão</dt><dd>{{ object.data_conexao|date:"d/m/Y"|default:"—" }}</dd></div>
+</dl>
+
+<h2>Rateio dos créditos</h2>
+{% if rateios %}
+<table class="itens">
+  <thead><tr><th>UC beneficiária</th><th class="num">Percentual</th></tr></thead>
+  <tbody>{% for r in rateios %}<tr><td><a href="{% url 'cadastro:uc' r.uc_id %}">{{ r.uc }}</a></td><td class="num">{{ r.percentual }}%</td></tr>{% endfor %}</tbody>
+</table>
+{% else %}<p class="secundario">Sem rateio: todos os créditos ficam na UC geradora.</p>{% endif %}
+
+<h2>Geração esperada</h2>
+{% if object.geracao_esperada_kwh|length == 12 %}
+<div class="rolagem"><table class="itens"><thead><tr>{% for m, v in esperada %}<th class="num">{{ m }}</th>{% endfor %}</tr></thead>
+<tbody><tr>{% for m, v in esperada %}<td class="num">{{ v|floatformat:0 }}</td>{% endfor %}</tr></tbody></table></div>
+{% else %}<p class="aviso">Sem geração esperada. A regra de geração abaixo do esperado fica desligada.</p>{% endif %}
+
+<h2>Inversores</h2>
+{% for i in inversores %}
+<dl class="ficha">
+  <div><dt>Equipamento</dt><dd>{{ i.marca }} {{ i.modelo }}</dd></div>
+  <div><dt>Número de série</dt><dd>{{ i.numero_serie|default:"—" }}</dd></div>
+  <div><dt>Provedor da API</dt><dd>{{ i.get_provedor_api_display }}{% if i.provedor_api == "fake" %} <span class="selo demo">dados de demonstração</span>{% endif %}</dd></div>
+  <div><dt>Credenciais</dt><dd>{% if i.credenciais %}guardadas (criptografadas){% else %}não informadas{% endif %} · <a href="{% url 'cadastro:inversor_editar' object.pk i.pk %}">editar</a></dd></div>
+</dl>
+{% empty %}<p class="secundario">Nenhum inversor vinculado.</p>{% endfor %}
+<p><a class="botao" href="{% url 'cadastro:inversor_novo' object.pk %}">Vincular inversor</a></p>
+
+<h2>Medidor próprio</h2>
+{% if medidor %}
+<dl class="ficha">
+  <div><dt>Equipamento</dt><dd>{{ medidor.fabricante }} {{ medidor.modelo }}</dd></div>
+  <div><dt>Provedor</dt><dd>{{ medidor.get_provedor_api_display }}{% if medidor.provedor_api == "fake" %} <span class="selo demo">dados de demonstração</span>{% endif %}</dd></div>
+</dl>
+<p><a class="botao" href="{% url 'cadastro:medidor_editar' object.pk medidor.pk %}">Editar medidor</a></p>
+{% else %}
+<p class="secundario">Sem medidor próprio. A regra de constante do medidor fica desligada.</p>
+<p><a class="botao" href="{% url 'cadastro:medidor_novo' object.pk %}">Vincular medidor</a></p>
+{% endif %}
+{% endblock %}
