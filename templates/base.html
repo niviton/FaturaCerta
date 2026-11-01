@@ -24,7 +24,8 @@
       {% if user.is_authenticated and user.is_equipe %}
       {% with p=request.path %}
       <nav aria-label="Principal">
-        <a href="{% url 'cadastro:clientes' %}" {% if '/cadastro/' in p and '/integradora/' not in p %}aria-current="page"{% endif %}>Clientes e usinas</a>
+        <a href="{% url 'monitoramento:painel' %}" {% if p == '/usinas/' %}aria-current="page"{% endif %}>Usinas agora</a>
+        <a href="{% url 'cadastro:clientes' %}" {% if '/cadastro/' in p and '/integradora/' not in p %}aria-current="page"{% endif %}>Clientes</a>
         {% if user.is_gestor %}<a href="{% url 'cadastro:integradora' %}" {% if '/integradora/' in p %}aria-current="page"{% endif %}>Configurações</a>{% endif %}
       </nav>
       {% endwith %}

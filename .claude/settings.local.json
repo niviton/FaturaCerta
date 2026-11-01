@@ -13,7 +13,9 @@
       "Bash(.venv/Scripts/python -m django --version)",
       "Bash(.venv/Scripts/python manage.py makemigrations core accounts cadastro)",
       "Bash(.venv/Scripts/python -m pytest)",
-      "Bash(.venv/Scripts/ruff check *)"
+      "Bash(.venv/Scripts/ruff check *)",
+      "Bash(.venv/Scripts/python manage.py makemigrations)",
+      "Bash(.venv/Scripts/python manage.py makemigrations monitoramento)"
     ]
   }
 }

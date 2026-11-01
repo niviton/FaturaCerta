@@ -28,14 +28,17 @@
 {% else %}<p>Nenhuma UC ainda. <a href="{% url 'cadastro:uc_nova' %}?cliente={{ object.pk }}">Cadastre a primeira UC</a>.</p>{% endif %}
 
 <h2>Usinas</h2>
-{% if usinas %}
-<table class="itens">
-  <thead><tr><th>Usina</th><th>UC geradora</th><th>Enquadramento</th><th class="num">kWp</th></tr></thead>
-  <tbody>{% for u in usinas %}
-  <tr><td><a href="{% url 'cadastro:usina' u.pk %}">{{ u.nome }}</a></td><td>{{ u.uc_geradora }}</td>
-      <td>{{ u.enquadramento|default:"—" }}</td><td class="num">{{ u.potencia_kwp|default:"—" }}</td></tr>
+{% if resumos %}
+<div class="rolagem"><table class="itens">
+  <thead><tr><th>Usina</th><th>Fabricante</th><th>Situação</th><th class="num">Agora</th><th class="num">Hoje</th><th>UC geradora</th><th>GD</th></tr></thead>
+  <tbody>{% for r in resumos %}
+  <tr class="s-{{ r.situacao }}"><td><a href="{% url 'cadastro:usina' r.usina.pk %}">{{ r.usina.nome }}</a></td>
+      <td>{{ r.marcas|join:" + "|default:"—" }}</td>
+      <td><span class="situacao"><span class="luz" aria-hidden="true"></span>{{ r.rotulo }}</span></td>
+      <td class="num">{{ r.potencia_kw|floatformat:1 }} kW</td><td class="num">{{ r.hoje_kwh|floatformat:1 }} kWh</td>
+      <td>{{ r.usina.uc_geradora }}</td><td>{{ r.usina.enquadramento|default:"—" }}</td></tr>
   {% endfor %}</tbody>
-</table>
+</table></div>
 {% else %}<p class="secundario">Nenhuma usina com UC geradora deste cliente.</p>{% endif %}
 
 <h2>Consentimento LGPD</h2>

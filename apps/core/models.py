@@ -16,7 +16,7 @@ class Integradora(models.Model):
     responsavel_tecnico_nome = models.CharField("responsável técnico", max_length=120, blank=True)
     responsavel_tecnico_crea = models.CharField("CREA", max_length=30, blank=True)
     logo = models.ImageField(upload_to="logos/", blank=True)
-    cor_marca = models.CharField(max_length=7, default="#13233A", validators=[cor_hex])
+    cor_marca = models.CharField(max_length=7, default="#1F4FFF", validators=[cor_hex])
     email_contato = models.EmailField(blank=True)
     telefone_contato = models.CharField(max_length=20, blank=True)
     ativa = models.BooleanField(default=True)

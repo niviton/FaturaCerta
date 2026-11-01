@@ -1,0 +1,34 @@
+{% load graficos %}
+<div id="lista" hx-get="{% url 'monitoramento:painel' %}?{{ request.GET.urlencode }}" hx-trigger="every 60s" hx-swap="outerHTML">
+{% for cliente, resumos in grupos.items %}
+  <section class="cliente-bloco" aria-labelledby="cli-{{ cliente.pk }}">
+    <header class="cliente-cab">
+      <h2 id="cli-{{ cliente.pk }}"><a href="{% url 'cadastro:cliente' cliente.pk %}">{{ cliente.nome }}</a></h2>
+      <span class="secundario">{{ resumos|length }} usina{{ resumos|length|pluralize }}</span>
+    </header>
+    <ul class="usinas">
+    {% for r in resumos %}
+      <li class="usina-linha s-{{ r.situacao }}">
+        <div class="usina-id">
+          <span class="luz" aria-hidden="true"></span>
+          <div>
+            <a class="usina-nome" href="{% url 'cadastro:usina' r.usina.pk %}">{{ r.usina.nome }}</a>
+            <span class="secundario">{{ r.marcas|join:" + "|default:"sem inversor" }}{% if r.usina.potencia_kwp %} · {{ r.usina.potencia_kwp|floatformat:1 }} kWp{% endif %}</span>
+          </div>
+        </div>
+        <div class="usina-sit"><span class="situacao">{{ r.rotulo }}</span>{% if r.demo %}<span class="selo demo" title="dados de demonstração">demo</span>{% endif %}</div>
+        <div class="usina-num"><span class="valor">{{ r.potencia_kw|floatformat:1 }}</span> <span class="unid">kW agora</span></div>
+        <div class="usina-hoje">
+          <div><span class="valor">{{ r.hoje_kwh|floatformat:1 }}</span> <span class="unid">kWh hoje{% if r.esperado_hoje_kwh %} de {{ r.esperado_hoje_kwh|floatformat:0 }}{% endif %}</span></div>
+          {% if r.pct_hoje is not None %}<div class="medidor" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ r.pct_hoje }}" aria-label="Geração de hoje em relação ao esperado"><span style="width: {% if r.pct_hoje > 100 %}100{% else %}{{ r.pct_hoje }}{% endif %}%"></span></div>{% endif %}
+        </div>
+        <div class="usina-graf">{% barras_geracao r.ultimos_dias 280 44 True %}
+          {% if r.desempenho_7d is not None %}<span class="unid">7 dias: {% widthratio r.desempenho_7d 1 100 %}% do esperado</span>{% endif %}</div>
+      </li>
+    {% endfor %}
+    </ul>
+  </section>
+{% empty %}
+  <p class="vazio">Nenhuma usina neste filtro. {% if total == 0 %}<a href="{% url 'cadastro:clientes' %}">Cadastre um cliente e vincule o inversor</a> para começar a monitorar.{% endif %}</p>
+{% endfor %}
+</div>

@@ -12,6 +12,7 @@ urlpatterns = [
     path("sair/", auth_views.LogoutView.as_view(), name="logout"),
     path("", home, name="home"),
     path("cadastro/", include("apps.cadastro.urls")),
+    path("usinas/", include("apps.monitoramento.urls")),
 ]
 
 if settings.DEBUG:

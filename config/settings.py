@@ -25,6 +25,8 @@ INSTALLED_APPS = [
     "apps.core",
     "apps.accounts",
     "apps.cadastro",
+    "apps.integracoes",
+    "apps.monitoramento",
 ]
 
 MIDDLEWARE = [
@@ -104,13 +106,28 @@ CELERY_BROKER_URL = REDIS_URL or "memory://"
 CELERY_RESULT_BACKEND = REDIS_URL or None
 CELERY_TASK_ALWAYS_EAGER = not REDIS_URL
 CELERY_TIMEZONE = TIME_ZONE
-CELERY_BEAT_SCHEDULE = {}
+CELERY_BEAT_SCHEDULE = {
+    "status-inversores": {"task": "apps.monitoramento.tasks.coletar_status_todos", "schedule": 15 * 60},
+    "geracao-diaria": {"task": "apps.monitoramento.tasks.coletar_geracao_todos", "schedule": 6 * 3600,
+                       "kwargs": {"dias": 3}},
+}
+
+# Monitoramento (padrões; por integradora na fase de alertas)
+MONITOR_HORAS_SEM_COMUNICACAO = int(os.environ.get("MONITOR_HORAS_SEM_COMUNICACAO", 3))
+MONITOR_LIMIAR_ABAIXO = float(os.environ.get("MONITOR_LIMIAR_ABAIXO", 0.8))  # 7 dias < 80% do esperado
+MONITOR_HORA_INICIO, MONITOR_HORA_FIM = 8, 16  # janela em que geração zero indica parada
 
 # Integrações
 INVERTER_PROVIDER = os.environ.get("INVERTER_PROVIDER", "fake")
 METER_PROVIDER = os.environ.get("METER_PROVIDER", "fake")
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-5-5")
+NOTIFY_EMAIL_PROVIDER = os.environ.get("NOTIFY_EMAIL_PROVIDER", "fake")  # fake|smtp
+NOTIFY_WHATSAPP_PROVIDER = os.environ.get("NOTIFY_WHATSAPP_PROVIDER", "fake")  # fake|cloud
+WHATSAPP_TOKEN = os.environ.get("WHATSAPP_TOKEN", "")
+WHATSAPP_PHONE_ID = os.environ.get("WHATSAPP_PHONE_ID", "")
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "FaturaCerta <nao-responda@faturacerta.local>")
+EMAIL_BACKEND = os.environ.get("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
 
 LOGGING = {
     "version": 1,

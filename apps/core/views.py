@@ -6,7 +6,7 @@ from django.shortcuts import redirect, render
 def home(request):
     u = request.user
     if u.is_equipe:
-        return redirect("cadastro:clientes")
+        return redirect("monitoramento:painel")
     if u.is_superuser or u.papel == u.Papel.ADMIN_INTERNO:
         return redirect("admin:index")
     # Portal do cliente final entra na fase 10.

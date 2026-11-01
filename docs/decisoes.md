@@ -40,3 +40,29 @@ dados da integradora (e, nas fases seguintes, usuários e configurações). Clie
 
 **D11. Log de auditoria.** Registramos visualização dos detalhes de cliente, UC e usina, criação e alteração. A
 exportação (laudos) entra quando houver exportação.
+
+## Fase 2 (monitoramento e integrações)
+
+**D12. Prioridade no monitoramento.** A pedido do cliente, a fase 2 entrega o monitoramento de várias usinas
+por cliente, de fabricantes diferentes, numa tela só ("Usinas agora"). Faturas e auditoria vêm em seguida.
+
+**D13. Real só com credenciais completas.** O inversor guarda o provedor (Growatt, Huawei...). Se as credenciais ou
+o `id_externo` estiverem incompletos, o sistema usa o Fake e a tela mostra "dados de demonstração". Assim dá para
+cadastrar a marca certa desde já e só preencher a credencial depois.
+
+**D14. Situação da usina.** Sem comunicação: última leitura há mais de `MONITOR_HORAS_SEM_COMUNICACAO` (3 h).
+Parada: inversor reporta offline, ou potência e energia zeradas entre 8 h e 16 h. Abaixo do esperado: últimos
+7 dias abaixo de `MONITOR_LIMIAR_ABAIXO` (80%) da geração esperada. Sem geração esperada cadastrada, estimamos por
+kWp × horas de sol de Natal × 0,78 (só para monitoramento, nunca para cálculo regulatório).
+
+**D15. Coleta.** Status a cada 15 min e geração diária a cada 6 h (últimos 3 dias, para corrigir dias parciais),
+pelo Celery beat. O botão "Atualizar agora" coleta o status na hora.
+
+**D16. Endpoints dos fabricantes.** Seguem a documentação pública conhecida e estão marcados "CONFIRMAR" no código.
+GoodWe SEMS não tem API oficial aberta para terceiros: precisa de acordo com o fabricante.
+
+**D17. Identidade visual.** A paleta da seção 9 foi trocada a pedido do cliente: midnight black `#0A0F1C` (fundo),
+electric cobalt `#1F4FFF` (faixa do topo, gráficos, seleção) e acid lime `#C8FF2E` (único destaque: botão
+principal, "gerando", linha do esperado). Laranja `#FF7A45` e verde `#4ADE80` seguem só para divergência/confere.
+Para links sobre o fundo escuro usamos um cobalto claro `#8EA6FF` (contraste ≥ 4,5:1). A situação da usina usa
+forma e cor (círculo, quadrado, losango), nunca só cor.

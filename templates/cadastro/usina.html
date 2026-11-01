@@ -6,6 +6,19 @@
   <div class="acoes"><a class="botao" href="{% url 'cadastro:usina_editar' object.pk %}">Editar usina</a></div>
 </div>
 
+{% load graficos %}
+<section class="agora s-{{ resumo.situacao }}" aria-label="Situação agora">
+  <div><span class="situacao"><span class="luz" aria-hidden="true"></span>{{ resumo.rotulo }}</span>{% if resumo.demo %} <span class="selo demo">dados de demonstração</span>{% endif %}</div>
+  <div><span class="placar-num">{{ resumo.potencia_kw|floatformat:1 }}<small> kW</small></span><span class="unid">agora</span></div>
+  <div><span class="placar-num">{{ resumo.hoje_kwh|floatformat:1 }}<small> kWh</small></span><span class="unid">hoje{% if resumo.esperado_hoje_kwh %}, esperado {{ resumo.esperado_hoje_kwh|floatformat:0 }}{% endif %}</span></div>
+  {% if resumo.desempenho_7d is not None %}<div><span class="placar-num">{% widthratio resumo.desempenho_7d 1 100 %}<small>%</small></span><span class="unid">do esperado em 7 dias</span></div>{% endif %}
+</section>
+{% if resumo.ultimos_dias %}
+<h2>Geração nos últimos 30 dias</h2>
+<figure class="figura">{% barras_geracao resumo.ultimos_dias 900 180 %}
+  <figcaption class="secundario">Barras: kWh por dia. Linha: geração esperada. Barras em laranja ficaram abaixo de 80% do esperado.</figcaption></figure>
+{% endif %}
+
 {% if object.enquadramento_divergente_da_data %}
 <p class="aviso">O enquadramento {{ object.enquadramento }} foi fixado manualmente, mas a data do protocolo indica {{ object.enquadramento_pela_data }}. Confira o parecer de acesso.</p>
 {% endif %}

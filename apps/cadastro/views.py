@@ -15,6 +15,7 @@ from apps.core.mixins import (
     TenantQuerysetMixin,
 )
 from apps.core.models import LogAuditoria
+from apps.monitoramento.services import resumir_usina
 
 from .forms import (
     MESES,
@@ -73,7 +74,9 @@ class ClienteDetailView(TenantQuerysetMixin, AuditarVisualizacaoMixin, DetailVie
     def get_context_data(self, **kw):
         ctx = super().get_context_data(**kw)
         ctx["ucs"] = self.object.ucs.select_related("concessionaria")
-        ctx["usinas"] = Usina.objects.filter(uc_geradora__cliente=self.object).select_related("uc_geradora")
+        usinas = (Usina.objects.filter(uc_geradora__cliente=self.object).select_related("uc_geradora")
+                  .prefetch_related("inversores__status_atual"))
+        ctx["resumos"] = [resumir_usina(u) for u in usinas]
         ctx["form_consentimento"] = ConsentimentoForm()
         return ctx
 
@@ -189,7 +192,7 @@ class UsinaDetailView(TenantQuerysetMixin, AuditarVisualizacaoMixin, DetailView)
     template_name = "cadastro/usina.html"
 
     def get_queryset(self):
-        return super().get_queryset().select_related("uc_geradora__cliente")
+        return super().get_queryset().select_related("uc_geradora__cliente").prefetch_related("inversores__status_atual")
 
     def get_context_data(self, **kw):
         ctx = super().get_context_data(**kw)
@@ -197,6 +200,7 @@ class UsinaDetailView(TenantQuerysetMixin, AuditarVisualizacaoMixin, DetailView)
         ctx["inversores"] = self.object.inversores.all()
         ctx["medidor"] = getattr(self.object, "medidor", None)
         ctx["esperada"] = list(zip(MESES, self.object.geracao_esperada_kwh, strict=False))
+        ctx["resumo"] = resumir_usina(self.object, dias_grafico=30)
         return ctx
 
 
