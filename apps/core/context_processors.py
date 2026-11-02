@@ -21,6 +21,7 @@ def tenant(request):
             _item(request, "Usuários", "plataforma:usuarios", "pessoas"),
             _item(request, "Integrações e APIs", "plataforma:integracoes", "plugue"),
             _item(request, "Logs de auditoria", "plataforma:logs", "escudo"),
+            _item(request, "Manuais", "manuais", "documento"),
         ]})
     if ctx["tenant"] is not None:
         itens = [
@@ -34,6 +35,8 @@ def tenant(request):
                 _item(request, "Equipe e acessos", "equipe:usuarios", "chave"),
                 _item(request, "Configurações", "cadastro:integradora", "engrenagem"),
             ]
+        if not u.is_admin_geral:  # o administrador já tem "Manuais" no grupo Plataforma
+            itens.append(_item(request, "Manuais", "manuais", "documento"))
         menus.append({"titulo": "Integradora" if u.is_admin_geral else "", "itens": itens})
     ctx["menus"] = menus
     return ctx

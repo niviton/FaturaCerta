@@ -166,6 +166,12 @@ por ação. Os logs não podem ser editados.
 Para manutenção avançada (catálogo de concessionárias, tarifa de referência, correções pontuais), existe o
 **Django admin** em `/admin/`, acessível só ao administrador geral.
 
+### 5.6 Manuais
+
+Menu **Manuais**: o administrador geral abre ou baixa os dois manuais em PDF, este (completo) e o **Manual da
+integradora**, para enviar às integradoras. A equipe da integradora vê só o manual dela, no mesmo menu. Cada
+download fica registrado no log como "exportou".
+
 ## 6. Integradora: visão geral e monitoramento
 
 ### 6.1 Visão geral
@@ -533,6 +539,21 @@ Cria duas integradoras, seis clientes com cadastro completo (um caso de auditori
 fabricantes, medidores próprios, geração diária, curva de hoje, leituras do medidor e 12 faturas por UC. As três
 fontes saem da mesma simulação, por isso os indícios aparecem coerentes. `--limpar` apaga e recria. Senha de todos
 os usuários: `FaturaCerta@2026`. As tarifas usadas são fictícias.
+
+### 14.5 Manuais em PDF
+
+Os textos dos manuais ficam em Markdown: `docs/MANUAL.md` (administrador geral, completo) e
+`docs/manuais/manual_integradora.md` (integradora). Depois de editar um deles, gere os PDFs de novo:
+
+```bash
+python manage.py gerar_manuais                  # os dois
+python manage.py gerar_manuais integradora      # só um
+python manage.py gerar_manuais --html           # também salva o HTML intermediário para revisão
+```
+
+O comando usa o WeasyPrint (presente na imagem Docker) ou, na falta dele, o Edge/Chrome em modo headless
+(Windows). Os PDFs vão para `docs/manuais/`, são versionados no Git e servidos pelo sistema em `/manuais/`, com
+acesso conforme o perfil.
 
 ## 15. Configuração (variáveis de ambiente)
 

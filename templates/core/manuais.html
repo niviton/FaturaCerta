@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Manuais · FaturaCerta{% endblock %}
+{% block migalhas %}<span>Manuais</span>{% endblock %}
+{% block content %}
+<div class="cab">
+  <div><h1>Manuais</h1><p>Guias em PDF para consultar, imprimir ou enviar à equipe.</p></div>
+</div>
+<div class="grade g-2">
+  {% for i in itens %}
+  <section class="painel">
+    <div class="painel-cab">
+      <div><h2>{{ i.manual.titulo }}</h2><p>Para: {{ i.manual.publico }}</p></div>
+      <svg width="28" height="28" aria-hidden="true" style="color:var(--cobalto-claro)"><use href="#i-documento"/></svg>
+    </div>
+    <p class="secundario">{{ i.manual.descricao }}</p>
+    {% if i.existe %}
+    <p class="secundario pequeno">PDF · {{ i.tamanho_kb }} KB · atualizado em {{ i.atualizado|date:"d/m/Y" }}</p>
+    <div class="acoes">
+      <a class="botao principal" href="{% url 'manual_pdf' i.manual.codigo %}" target="_blank" rel="noopener">Abrir PDF</a>
+      <a class="botao" href="{% url 'manual_pdf' i.manual.codigo %}?baixar=1">Baixar</a>
+    </div>
+    {% else %}
+    <p class="aviso">O PDF ainda não foi gerado. Rode <code>python manage.py gerar_manuais</code> no servidor.</p>
+    {% endif %}
+  </section>
+  {% endfor %}
+</div>
+{% endblock %}

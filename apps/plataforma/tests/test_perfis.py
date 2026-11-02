@@ -79,6 +79,32 @@ def test_equipe_nao_acessa_plataforma(client, gestor_a, cli_user):
         assert client.get(reverse("plataforma:visao")).status_code == 403
 
 
+# ---------------------------------------------------------------- manuais
+
+def test_manuais_por_perfil(client, admin_geral, gestor_a, tecnico_a, cli_user):
+    from apps.core.manuais import MANUAIS
+
+    if not all(m.arquivo.exists() for m in MANUAIS.values()):
+        pytest.skip("PDFs não gerados (python manage.py gerar_manuais)")
+    client.force_login(admin_geral)
+    html = client.get(reverse("manuais")).content.decode()
+    assert "Manual do administrador geral" in html and "Manual da integradora" in html
+    for codigo in ("administrador", "integradora"):
+        r = client.get(reverse("manual_pdf", args=[codigo]))
+        assert r.status_code == 200 and r["Content-Type"] == "application/pdf"
+
+    for u in (gestor_a, tecnico_a):
+        client.force_login(u)
+        html = client.get(reverse("manuais")).content.decode()
+        assert "Manual da integradora" in html and "Manual do administrador geral" not in html
+        assert client.get(reverse("manual_pdf", args=["integradora"])).status_code == 200
+        assert client.get(reverse("manual_pdf", args=["administrador"])).status_code == 404
+
+    client.force_login(cli_user)
+    assert client.get(reverse("manuais")).status_code == 404
+    assert client.get(reverse("manual_pdf", args=["integradora"])).status_code == 404
+
+
 # ---------------------------------------------------------------- integradora
 
 def test_gestor_nao_cria_admin_nem_usuario_de_outra_integradora(client, gestor_a, integradora_b, cliente_b):
