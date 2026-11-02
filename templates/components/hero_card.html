@@ -1,0 +1,8 @@
+{% load fc %}{# hero_card: rotulo, icone, valor, casas, prefixo, unidade, sub, estado (ok|solar|danger|brand), acento (bool), acao_url, acao_texto, serie (tendência), serie_legenda #}
+{% with nc=casas|default:0 %}<section class="hero {% if acento %}hero-acento{% endif %}" data-estado="{{ estado|default:'ok' }}" aria-label="{{ rotulo }}">
+  <span class="hero-rotulo">{% if icone %}{% icone icone %}{% endif %}{{ rotulo }}</span>
+  {% if serie %}<div class="hero-tendencia">{% sparkline serie estado|default:"ok" 320 72 %}{% if serie_legenda %}<span class="hero-sub small">{{ serie_legenda }}</span>{% endif %}</div>{% endif %}
+  <div class="hero-valor">{% if prefixo %}<span class="prefixo">{{ prefixo }}</span>{% endif %}<span data-contar="{{ valor|default:0|stringformat:'s' }}" data-casas="{{ nc }}">{{ valor|ptbr:nc }}</span>{% if unidade %}<span class="unidade">{{ unidade }}</span>{% endif %}</div>
+  {% if sub %}<span class="hero-sub">{{ sub }}</span>{% endif %}
+  {% if acao_url %}<a class="btn hero-acao" href="{{ acao_url }}">{{ acao_texto }}{% icone "arrow-up-right" "i-sm" %}</a>{% endif %}
+</section>{% endwith %}

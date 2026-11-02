@@ -4,7 +4,7 @@ from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import include, path
 
-from apps.core.views import home, manuais, manual_pdf
+from apps.core.views import design, home, manuais, manual_pdf
 from apps.monitoramento.api import receber_medicoes
 from apps.monitoramento.urls import painel_urlpatterns
 
@@ -15,6 +15,7 @@ urlpatterns = [
     path("sair/", auth_views.LogoutView.as_view(), name="logout"),
     path("", home, name="home"),
     path("manuais/", manuais, name="manuais"),
+    path("design/", design, name="design"),
     path("manuais/<slug:codigo>.pdf", manual_pdf, name="manual_pdf"),
     # administrador geral
     path("plataforma/", include("apps.plataforma.urls")),

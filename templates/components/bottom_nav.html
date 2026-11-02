@@ -1,0 +1,4 @@
+{% load fc %}{# bottom_nav: itens [{titulo, url, icone, ativo}] (até 4). Navegação em pílula flutuante, só no portal do cliente. #}
+<nav class="bottom-nav" aria-label="Navegação">
+  {% for i in itens %}<a href="{{ i.url }}" {% if i.ativo %}aria-current="page"{% endif %}>{% icone i.icone %}{{ i.titulo }}</a>{% endfor %}
+</nav>

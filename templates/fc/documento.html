@@ -1,0 +1,33 @@
+{% load static %}<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{% block title %}FaturaCerta{% endblock %}</title>
+  <script>
+    /* tema e menu antes de pintar a página (sem piscar) */
+    (function () {
+      var r = document.documentElement, t = null, m = null;
+      try { t = localStorage.getItem("fc-tema"); m = localStorage.getItem("fc-menu"); } catch (e) {}
+      if (!t) t = window.matchMedia("(prefers-color-scheme: light)").matches ? "claro" : "escuro";
+      r.dataset.theme = t === "claro" ? "light" : "dark";
+      if (m === "recolhido") r.classList.add("recolhido");
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/fc.css' %}">
+  {% if tenant and tenant.cor_marca and not ignorar_marca %}<style>:root { --marca-integradora: {{ tenant.cor_marca }}; }</style>{% endif %}
+  {% block head %}{% endblock %}
+  <script src="{% static 'vendor/htmx.min.js' %}" defer></script>
+  <script src="{% static 'js/fc.js' %}" defer></script>
+  {% block scripts %}{% endblock %}
+</head>
+<body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+{% include "components/icones.html" %}
+<a class="skip" href="#conteudo">Pular para o conteúdo</a>
+{% block corpo %}{% endblock %}
+{% include "components/toast.html" %}
+</body>
+</html>

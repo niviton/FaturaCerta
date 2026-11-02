@@ -1,0 +1,5 @@
+{# skeleton: linhas (lista de larguras, ex.: "70%,40%"), altura. Use enquanto o HTMX carrega. #}
+<div class="pilha" aria-hidden="true" style="--gap:.6rem">
+  <div class="skeleton" style="height:{{ altura|default:'120px' }};border-radius:12px"></div>
+  {% for w in linhas %}<div class="skeleton" style="width:{{ w }};height:12px;margin-top:.6rem"></div>{% endfor %}
+</div>

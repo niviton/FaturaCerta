@@ -1,0 +1,21 @@
+{% load fc %}{# chart_panel: id, titulo, sub, dados (JSON do gráfico), tipo, altura, periodos (lista), vazio_texto. O desenho entra na etapa 2 (ECharts). #}
+<section class="painel grafico-painel" aria-labelledby="{{ id }}-t">
+  <div class="painel-cab">
+    <div><h3 id="{{ id }}-t">{{ titulo }}</h3>{% if sub %}<p>{{ sub }}</p>{% endif %}</div>
+    {% if periodos %}<div class="periodo" role="group" aria-label="Período">{% for p in periodos %}<button type="button" aria-pressed="{% if forloop.first %}true{% else %}false{% endif %}">{{ p }}</button>{% endfor %}</div>{% endif %}
+  </div>
+  {% if dados %}
+  <div class="grafico" style="--altura:{{ altura|default:'280px' }}" data-chart="{{ tipo }}" data-fonte="{{ id }}" role="img" aria-label="{{ titulo }}">
+    <div class="skeleton" style="position:absolute;inset:0"></div>
+  </div>
+  {{ dados|json_script:id }}
+  {% if dados.tabela %}
+  <details><summary>Ver os números</summary>
+    <div class="tabela-caixa" style="margin:.5rem 0 0"><table class="tabela"><thead><tr><th></th>{% for c in dados.tabela.cabecalho %}<th class="num">{{ c }}</th>{% endfor %}</tr></thead>
+    <tbody>{% for linha in dados.tabela.linhas %}<tr>{% for v in linha %}{% if forloop.first %}<td>{{ v }}</td>{% else %}<td class="num">{{ v|ptbr:dados.casas }}</td>{% endif %}{% endfor %}</tr>{% endfor %}</tbody></table></div>
+  </details>
+  {% endif %}
+  {% else %}
+  {% include "components/empty_state.html" with icone="chart-column" titulo="Sem dados ainda" texto=vazio_texto %}
+  {% endif %}
+</section>

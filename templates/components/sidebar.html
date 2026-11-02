@@ -1,0 +1,43 @@
+{% load fc %}
+<aside class="sidebar" aria-label="Menu principal">
+  <a class="marca" href="{% url 'home' %}">
+    <span class="marca-logo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z"/></svg></span>
+    <span class="marca-texto"><span class="marca-nome">FaturaCerta</span>
+      <span class="marca-sub">{% if user.is_admin_geral %}{% if atuando %}como {{ tenant }}{% else %}administração geral{% endif %}{% elif tenant %}{{ tenant }}{% endif %}</span></span>
+  </a>
+
+  {% if atuando %}
+  <form method="post" action="{% url 'plataforma:sair_atuacao' %}" class="nav-grupo">{% csrf_token %}
+    <button class="btn btn-p" type="submit" title="Voltar para a plataforma">{% icone "chevrons-left" "i-sm" %}<span class="rotulo-recolhivel">Voltar para a plataforma</span></button>
+  </form>
+  {% endif %}
+
+  <nav class="nav-grupo" aria-label="Seções">
+    {% for grupo in menus %}
+      {% if grupo.titulo %}<div class="nav-titulo" {% if not forloop.first %}style="margin-top:.9rem"{% endif %}>{{ grupo.titulo }}</div>{% endif %}
+      {% for i in grupo.itens %}
+      <a class="nav-item" href="{{ i.url }}" title="{{ i.titulo }}" {% if i.ativo %}aria-current="page"{% endif %}>
+        {% icone i.icone %}<span class="nav-rotulo">{{ i.titulo }}</span>
+        {% if i.contador %}<span class="nav-contador">{{ i.contador }}</span>{% endif %}
+      </a>
+      {% endfor %}
+    {% endfor %}
+    {% if extra_menu %}{% for i in extra_menu %}
+      <a class="nav-item" href="{{ i.url }}" title="{{ i.titulo }}" {% if i.ativo %}aria-current="page"{% endif %}>{% icone i.icone %}<span class="nav-rotulo">{{ i.titulo }}</span></a>
+    {% endfor %}{% endif %}
+  </nav>
+
+  <div class="sidebar-rodape">
+    <div class="quem">
+      <span class="avatar" aria-hidden="true">{{ user.nome_exibicao|iniciais }}</span>
+      <div style="min-width:0"><div class="quem-nome">{{ user.nome_exibicao }}</div><div class="quem-papel">{{ user.get_papel_display }}</div></div>
+    </div>
+    <div class="nav-grupo">
+      <button class="nav-item botao-recolher" type="button" data-acao="recolher" aria-expanded="true" title="Recolher menu"
+              style="border:0;background:none;width:100%;cursor:pointer;font:inherit">{% icone "panel-left" %}<span class="nav-rotulo">Recolher menu</span></button>
+      <form method="post" action="{% url 'logout' %}">{% csrf_token %}
+        <button class="nav-item" type="submit" title="Sair" style="border:0;background:none;width:100%;cursor:pointer;font:inherit">{% icone "log-out" %}<span class="nav-rotulo">Sair</span></button>
+      </form>
+    </div>
+  </div>
+</aside>

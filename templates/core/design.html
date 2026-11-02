@@ -1,0 +1,198 @@
+{% extends "fc/app.html" %}
+{% load fc %}
+{% block title %}Design system · FaturaCerta{% endblock %}
+{% block head %}
+<style>
+  .ds-secao { margin-top: 3rem; }
+  .ds-secao > h2 { font-size: var(--t-24); margin-bottom: .35rem; }
+  .ds-secao > p.muted { margin-bottom: 1.25rem; }
+  .swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: .75rem; }
+  .swatch { border-radius: var(--r-panel); overflow: hidden; border: 1px solid var(--border); background: var(--surface); }
+  .swatch-cor { height: 72px; border-bottom: 1px solid var(--border); }
+  .swatch-info { padding: .7rem .85rem; display: flex; flex-direction: column; gap: .15rem; }
+  .swatch-info code { font-family: var(--mono); font-size: var(--t-12); color: var(--text); }
+  .categoricas { display: flex; gap: .5rem; flex-wrap: wrap; }
+  .categoricas span { width: 56px; height: 56px; border-radius: 12px; display: grid; place-items: end start; padding: .35rem;
+                      font: 500 11px var(--mono); color: #06080C; }
+  .escala-linha { display: grid; grid-template-columns: 64px 1fr auto; align-items: baseline; gap: 1rem; padding: .6rem 0;
+                  border-bottom: 1px solid var(--border); }
+  .raios { display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end; }
+  .raios div { background: var(--surface-2); border: 1px solid var(--border-strong); display: grid; place-items: center; color: var(--muted); font-size: var(--t-12); }
+  .mock-celular { position: relative; width: 340px; max-width: 100%; height: 300px; border-radius: 36px; border: 1px solid var(--border-strong);
+                  background: var(--bg); overflow: hidden; margin-inline: auto; }
+  .mock-celular::before { content: ""; position: absolute; inset: 0; background: var(--glow); }
+  .mock-celular .bottom-nav { position: absolute; }
+  @media (max-width: 560px) {
+    .swatches { grid-template-columns: 1fr 1fr; }
+    .swatch-cor { height: 48px; }
+    .escala-linha { grid-template-columns: 44px 1fr; }
+    .escala-linha > :last-child { display: none; }
+  }
+  .demo-vidro { position: relative; padding: 2rem; border-radius: var(--r-panel); overflow: hidden;
+                background: radial-gradient(circle at 20% 30%, var(--brand), transparent 55%), radial-gradient(circle at 80% 70%, var(--solar), transparent 50%), var(--surface-2); }
+</style>
+{% endblock %}
+{% block migalhas %}<a href="{% url 'plataforma:visao' %}">Plataforma</a>{% icone "chevron-right" %}<span>Design system</span>{% endblock %}
+{% block topbar_acoes %}{% include "components/status_pill.html" with tom="brand" texto="Referência viva" sem_ponto=True %}{% endblock %}
+{% block content %}
+<div class="pagina-cab">
+  <div>
+    <h1>Noite solar</h1>
+    <p>O design system do FaturaCerta. Escuro como padrão, com luz só onde há energia ou dinheiro. Use o botão de tema no topo para ver o claro.</p>
+  </div>
+  <div class="acoes">
+    <button class="btn" type="button" data-acao="tema">{% icone "sun" "i-sm" %}Trocar tema</button>
+    <a class="btn btn-primario" href="#componentes">{% icone "sparkles" "i-sm" %}Ver componentes</a>
+  </div>
+</div>
+
+<div class="grade g-hero entra">
+  {% include "components/hero_card.html" with rotulo="R$ a recuperar no mês" icone="wallet" valor=18934.4 casas=2 prefixo="R$" sub="29 faturas com divergência em 6 clientes" estado="danger" acao_url="#" acao_texto="Ver divergências" serie=serie_ruim serie_legenda="Valor a recuperar, últimos 12 meses" %}
+  <div class="kpis">
+    {% include "components/kpi_card.html" with rotulo="Potência agora" icone="zap" valor=152.4 casas=1 unidade="kW" estado="energia" rodape="9 de 11 usinas gerando" serie=serie serie_tom="accent" %}
+    {% include "components/kpi_card.html" with rotulo="Gerado no mês" icone="sun" valor=31840 unidade="kWh" estado="solar" delta="+6%" delta_bom=True rodape="contra o esperado" serie=serie serie_tom="solar" %}
+    {% include "components/kpi_card.html" with rotulo="Usinas com problema" icone="triangle-alert" valor=3 estado="danger" delta="+2" rodape="desde ontem" serie=serie_ruim serie_tom="danger" %}
+    {% include "components/kpi_card.html" with rotulo="Faturas conferidas" icone="circle-check" valor=79 estado="ok" unidade="de 108" delta="+12" delta_bom=True rodape="este mês" serie=serie serie_tom="ok" %}
+  </div>
+</div>
+
+<section class="ds-secao" aria-labelledby="t-cores">
+  <h2 id="t-cores">Cores</h2>
+  <p class="muted">Tokens em <code class="mono">:root</code> (escuro) e <code class="mono">[data-theme="light"]</code> (claro). Cada cor tem um único papel.</p>
+  <div class="swatches">
+    {% for nome, escuro, claro, uso in tokens %}
+    <div class="swatch"><div class="swatch-cor" style="background: var({{ nome }})"></div>
+      <div class="swatch-info"><code>{{ nome }}</code><span class="small muted">{{ uso }}</span><span class="small mono muted">{{ escuro }} · {{ claro }}</span></div></div>
+    {% endfor %}
+  </div>
+  <h3 style="margin:1.5rem 0 .75rem">Paleta categórica dos gráficos</h3>
+  <p class="muted small">Oito cores realmente diferentes entre si, também por luminosidade. A cor segue a categoria, nunca a posição.</p>
+  <div class="categoricas">{% for c in categoricas %}<span style="background: var({{ c }})">{{ forloop.counter }}</span>{% endfor %}</div>
+</section>
+
+<section class="ds-secao" aria-labelledby="t-tipo">
+  <h2 id="t-tipo">Tipografia</h2>
+  <p class="muted">Geist para tudo; Geist Mono só para valores técnicos pequenos (UC, série, kWh em tabela). Números sempre tabulares.</p>
+  <div class="painel">
+    {% for px, uso in escala %}
+    <div class="escala-linha"><span class="small mono muted">{{ px }}px</span><span style="font-size:{{ px }}px;font-weight:{% if px >= 24 %}650{% else %}450{% endif %};letter-spacing:{% if px >= 32 %}-0.035em{% else %}-0.01em{% endif %};line-height:1.1" class="num">{% if px >= 44 %}R$ 18.934{% else %}Cada kWh conferido{% endif %}</span><span class="small muted">{{ uso }}</span></div>
+    {% endfor %}
+    <div class="escala-linha" style="border:0"><span class="small mono muted">mono</span><span class="mono">UC 7010453067 · S/N GR0026 · 1.234,5 kWh</span><span class="small muted">Valores técnicos</span></div>
+  </div>
+</section>
+
+<section class="ds-secao" aria-labelledby="t-sup">
+  <h2 id="t-sup">Superfícies e raios</h2>
+  <p class="muted">Hierarquia por luz, não por caixas. Um raio por nível: controles 10, painéis 16, cartão-herói 24, pílulas redondas.</p>
+  <div class="grade g-3">
+    <div class="painel"><h3>Painel</h3><p class="muted small" style="margin-top:.4rem">--surface, raio 16. Para o conteúdo do dia a dia.</p></div>
+    <div class="demo-vidro"><div class="painel painel-vidro"><h3>Vidro</h3><p class="muted small" style="margin-top:.4rem">--glass com desfoque. Para painéis flutuantes e modais.</p></div></div>
+    <div class="raios">
+      <div style="width:64px;height:40px;border-radius:10px">10</div><div style="width:88px;height:64px;border-radius:16px">16</div>
+      <div style="width:110px;height:88px;border-radius:24px">24</div><div style="width:90px;height:32px;border-radius:999px">pílula</div>
+    </div>
+  </div>
+</section>
+
+<section class="ds-secao" id="componentes" aria-labelledby="t-hero">
+  <h2 id="t-hero">Cartão-herói</h2>
+  <p class="muted">O número mais importante da tela. Claro sobre escuro; o halo muda com a situação.</p>
+  <div class="grade g-3">
+    {% include "components/hero_card.html" with rotulo="kWp monitorados" icone="sun" valor=273.4 casas=1 unidade="kWp" sub="11 usinas em 2 integradoras" estado="ok" %}
+    {% include "components/hero_card.html" with rotulo="Geração abaixo do esperado" icone="trending-down" valor=68 unidade="%" sub="Pajuçara · estacionamento, últimos 7 dias" estado="solar" %}
+    {% include "components/hero_card.html" with rotulo="Você economizou este mês" icone="wallet" valor=412.9 casas=2 prefixo="R$" sub="Padaria Sol Nascente · conta de outubro" acento=True %}
+  </div>
+</section>
+
+<section class="ds-secao" aria-labelledby="t-pilulas">
+  <h2 id="t-pilulas">Botões e pílulas de status</h2>
+  <div class="painel pilha">
+    <div class="acoes">
+      <button class="btn btn-primario" type="button">{% icone "file-text" "i-sm" %}Gerar laudo</button>
+      <button class="btn btn-marca" type="button">{% icone "building-2" "i-sm" %}Entrar como</button>
+      <button class="btn" type="button">{% icone "download" "i-sm" %}Exportar</button>
+      <button class="btn btn-fantasma" type="button">Cancelar</button>
+      <button class="btn btn-perigo" type="button">Remover</button>
+      <button class="btn btn-p" type="button">Pequeno</button>
+      <button class="btn btn-icone" type="button" aria-label="Atualizar">{% icone "refresh-cw" %}</button>
+    </div>
+    <div class="acoes">
+      {% include "components/status_pill.html" with tom="ok" texto="Gerando" %}
+      {% include "components/status_pill.html" with tom="solar" texto="Abaixo do esperado" %}
+      {% include "components/status_pill.html" with tom="danger" texto="Parada" %}
+      {% include "components/status_pill.html" with tom="danger" texto="Divergência" %}
+      {% include "components/status_pill.html" with tom="ok" texto="Confere" sem_ponto=True %}
+      {% include "components/status_pill.html" with tom="brand" texto="GD2" sem_ponto=True %}
+      {% include "components/status_pill.html" with tom="accent" texto="18,7 kWp" sem_ponto=True %}
+      {% include "components/status_pill.html" with texto="Sem sol agora" %}
+      {% include "components/status_pill.html" with tom="demo" texto="demonstração com clima real" sem_ponto=True %}
+    </div>
+  </div>
+</section>
+
+<section class="ds-secao" aria-labelledby="t-filtros">
+  <h2 id="t-filtros">Filtros por status</h2>
+  <p class="muted">Pílulas com contador. A selecionada inverte as cores; o número do contador carrega o tom da situação.</p>
+  <form class="filtros" onsubmit="return false">
+    {% include "components/filter_tabs.html" with itens=filtros nome="status" atual="todas" rotulo_grupo="Situação das usinas" %}
+    <label class="busca"><span class="sr-only">Buscar</span>{% icone "search" %}<input type="search" placeholder="Cliente, usina ou fabricante"></label>
+  </form>
+</section>
+
+<section class="ds-secao" aria-labelledby="t-tabela">
+  <h2 id="t-tabela">Tabela</h2>
+  <p class="muted">Densa, números à direita, linha clicável, cabeçalho fixo ao rolar.</p>
+  <div class="painel">
+    <div class="painel-cab"><div><h3>Usinas</h3><p>3 de 11 · ordenadas por gravidade</p></div><a class="btn btn-p" href="#">Ver todas</a></div>
+    {% include "components/data_table.html" with colunas=colunas linhas=linhas legenda="Exemplo de tabela de usinas" %}
+  </div>
+</section>
+
+<section class="ds-secao" aria-labelledby="t-form">
+  <h2 id="t-form">Formulário</h2>
+  <div class="painel" style="max-width:760px">
+    <div class="grade g-2">
+      <div class="campo"><label for="ds1">Número da UC</label><input id="ds1" type="text" class="mono" value="7010453067"><p class="ajuda">Como vem impresso na fatura.</p></div>
+      <div class="campo"><label for="ds2">Grupo</label><select id="ds2"><option>Grupo B (baixa tensão)</option><option>Grupo A</option></select></div>
+      <div class="campo invalido"><label for="ds3">CPF/CNPJ</label><input id="ds3" type="text" value="12.345.678/0001-00" aria-invalid="true" aria-describedby="ds3e"><p class="erro" id="ds3e">CNPJ inválido. Confira os dígitos.</p></div>
+      <div class="campo"><label for="ds4">Data do protocolo</label><input id="ds4" type="date" value="2023-06-15"><p class="ajuda">Define GD1 ou GD2.</p></div>
+    </div>
+    <label class="small" style="display:flex;gap:.5rem;align-items:center"><input type="checkbox" checked> Medidor bidirecional instalado</label>
+  </div>
+</section>
+
+<section class="ds-secao" aria-labelledby="t-estados">
+  <h2 id="t-estados">Estados: vazio, carregando, avisos e confirmação</h2>
+  <div class="grade g-3">
+    {% include "components/empty_state.html" with icone="plug" titulo="Nenhum inversor conectado" texto="Conecte um inversor para ver a geração aqui." acao_url="#" acao_texto="Vincular inversor" %}
+    <div class="painel">{% include "components/skeleton.html" with linhas=skel altura="96px" %}</div>
+    <div class="painel pilha">
+      <h3>Toast e modal</h3>
+      <p class="muted small">Avisos em vidro no canto; confirmações num diálogo nativo, acessível pelo teclado.</p>
+      <div class="acoes">
+        <button class="btn btn-p" type="button" onclick="fcToast('Fatura salva.','ok')">Toast de sucesso</button>
+        <button class="btn btn-p" type="button" onclick="fcToast('Não foi possível ler a API da Growatt.','erro')">Toast de erro</button>
+        <button class="btn btn-p btn-primario" type="button" data-abre-modal="ds-modal">Abrir modal</button>
+      </div>
+    </div>
+  </div>
+  {% include "components/modal.html" with id="ds-modal" titulo="Aceitar a recomendação?" texto="Ajustar a demanda contratada para 165 kW. A economia passa a ser apurada mês a mês contra a linha de base, e o laudo completo é liberado." confirmar_texto="Aceitar recomendação" %}
+</section>
+
+<section class="ds-secao" aria-labelledby="t-cel">
+  <h2 id="t-cel">Navegação no celular</h2>
+  <p class="muted">Pílula flutuante no rodapé, só no portal do cliente. Quatro itens no máximo.</p>
+  <div class="mock-celular">{% include "components/bottom_nav.html" with itens=nav_celular %}</div>
+</section>
+
+<section class="ds-secao" aria-labelledby="t-graficos">
+  <h2 id="t-graficos">Gráficos</h2>
+  <p class="muted">Os 12 tipos (ECharts, temas claro e escuro) entram aqui na etapa 2. A moldura já está pronta:</p>
+  <div class="grade g-2">
+    {% include "components/chart_panel.html" with id="ds-vazio" titulo="Geração × esperado" sub="Últimos 30 dias" periodos=periodos vazio_texto="Conecte um inversor para ver a geração aqui." %}
+    <section class="painel grafico-painel"><div class="painel-cab"><div><h3>Carregando</h3><p>Enquanto o HTMX troca o conteúdo</p></div>
+      <div class="periodo" role="group" aria-label="Período"><button type="button" aria-pressed="false">7D</button><button type="button" aria-pressed="true">30D</button><button type="button" aria-pressed="false">12M</button></div></div>
+      <div class="skeleton" style="height:200px;border-radius:12px"></div></section>
+  </div>
+</section>
+{% endblock %}

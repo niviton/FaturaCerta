@@ -1,0 +1,10 @@
+{# filter_tabs: itens [{rotulo, valor, contador, tom}], nome (parâmetro GET), atual, rotulo_grupo #}
+<fieldset class="filtro-tabs">
+  <legend class="sr-only">{{ rotulo_grupo|default:"Filtrar" }}</legend>
+  {% for f in itens %}
+  <label class="filtro-tab" {% if f.tom %}data-tom="{{ f.tom }}"{% endif %}>
+    <input type="radio" name="{{ nome }}" value="{{ f.valor }}" {% if f.valor == atual %}checked{% endif %}>
+    {{ f.rotulo }}<span class="contador">{{ f.contador }}</span>
+  </label>
+  {% endfor %}
+</fieldset>

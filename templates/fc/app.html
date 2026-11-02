@@ -1,0 +1,21 @@
+{% extends "fc/documento.html" %}
+{% load fc %}
+{% block corpo %}
+<div class="shell">
+  {% include "components/sidebar.html" %}
+  <div class="principal">
+    {# topbar: fica aqui (e não num include) para cada página preencher os blocos de migalhas e ações #}
+    <header class="topbar">
+      <button class="btn btn-fantasma btn-icone abrir-menu" type="button" data-acao="menu" aria-expanded="false" aria-label="Abrir menu">{% icone "menu" %}</button>
+      <nav class="migalhas" aria-label="Você está em">{% block migalhas %}{% endblock %}</nav>
+      <div class="topbar-acoes">
+        {% block topbar_acoes %}{% endblock %}
+        {% include "components/tema_toggle.html" %}
+      </div>
+    </header>
+    <main class="conteudo" id="conteudo">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+{% endblock %}

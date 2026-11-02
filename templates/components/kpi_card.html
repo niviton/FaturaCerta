@@ -1,0 +1,13 @@
+{% load fc %}{# kpi_card: rotulo, valor, casas, unidade, prefixo, icone, estado (energia|solar|ok|danger), rodape, delta, delta_bom, serie, serie_tom #}
+{% with nc=casas|default:0 %}<div class="kpi" {% if estado %}data-estado="{{ estado }}"{% endif %}>
+  <div class="kpi-topo">
+    <span class="kpi-rotulo">{{ rotulo }}</span>
+    {% if icone %}<span class="kpi-icone">{% icone icone %}</span>{% endif %}
+  </div>
+  <div class="kpi-valor">{% if prefixo %}<small style="margin:0 .25rem 0 0">{{ prefixo }}</small>{% endif %}<span data-contar="{{ valor|default:0|stringformat:'s' }}" data-casas="{{ nc }}">{{ valor|ptbr:nc }}</span>{% if unidade %}<small>{{ unidade }}</small>{% endif %}</div>
+  <div class="kpi-rodape">
+    {% if delta %}<span class="delta {% if delta_bom %}delta-bom{% else %}delta-ruim{% endif %}">{% if delta_bom %}{% icone "trending-up" %}{% else %}{% icone "trending-down" %}{% endif %}{{ delta }}</span>{% endif %}
+    {% if rodape %}<span>{{ rodape }}</span>{% endif %}
+  </div>
+  {% if serie %}{% sparkline serie serie_tom|default:"brand" %}{% endif %}
+</div>{% endwith %}

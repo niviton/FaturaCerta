@@ -1,0 +1,1 @@
+{# status_pill: tom (ok|solar|danger|brand|accent|demo|neutro), texto, sem_ponto (bool), titulo #}<span class="pill {% if tom and tom != 'neutro' %}pill-{{ tom }}{% endif %}" {% if titulo %}title="{{ titulo }}"{% endif %}>{% if not sem_ponto %}<span class="ponto" aria-hidden="true"></span>{% endif %}{{ texto }}</span>

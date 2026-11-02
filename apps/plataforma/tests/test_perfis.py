@@ -79,6 +79,16 @@ def test_equipe_nao_acessa_plataforma(client, gestor_a, cli_user):
         assert client.get(reverse("plataforma:visao")).status_code == 403
 
 
+# ---------------------------------------------------------------- design system
+
+def test_pagina_design_so_para_admin(client, admin_geral, gestor_a):
+    client.force_login(admin_geral)
+    html = client.get(reverse("design")).content.decode()
+    assert "Noite solar" in html and "R$ a recuperar no mês" in html
+    client.force_login(gestor_a)
+    assert client.get(reverse("design")).status_code == 404
+
+
 # ---------------------------------------------------------------- manuais
 
 def test_manuais_por_perfil(client, admin_geral, gestor_a, tecnico_a, cli_user):

@@ -1,0 +1,11 @@
+{# modal: id, titulo, texto, confirmar_texto, confirmar_classe (btn-primario|btn-perigo), acao (URL do POST; vazio = só fecha). Abrir com <button data-abre-modal="id">. #}
+<dialog class="modal" id="{{ id }}" aria-labelledby="{{ id }}-t">
+  <form method="{% if acao %}post{% else %}dialog{% endif %}" {% if acao %}action="{{ acao }}"{% endif %}>
+    {% if acao %}{% csrf_token %}{% endif %}
+    <div class="modal-corpo"><h2 id="{{ id }}-t">{{ titulo }}</h2><p class="muted">{{ texto }}</p></div>
+    <div class="modal-acoes">
+      <button class="btn btn-fantasma" type="button" data-fecha-modal>Cancelar</button>
+      <button class="btn {{ confirmar_classe|default:'btn-primario' }}" type="submit">{{ confirmar_texto|default:"Confirmar" }}</button>
+    </div>
+  </form>
+</dialog>

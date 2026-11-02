@@ -26,6 +26,7 @@ def tenant(request):
             _item(request, "Integrações e APIs", "plataforma:integracoes", "plugue"),
             _item(request, "Logs de auditoria", "plataforma:logs", "escudo"),
             _item(request, "Manuais", "manuais", "documento"),
+            _item(request, "Design system", "design", "palette"),
         ]})
     if ctx["tenant"] is not None:
         itens = [

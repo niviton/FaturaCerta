@@ -1,0 +1,10 @@
+{% load fc %}{# toasts: mensagens do Django; novos avisos via window.fcToast(texto, "ok"|"erro"|"info") #}
+<div class="toasts" aria-live="polite">
+  {% for m in messages %}
+  <div class="toast toast-{% if m.tags == 'success' %}ok{% elif m.tags == 'error' %}erro{% else %}info{% endif %}" data-auto role="{% if m.tags == 'error' %}alert{% else %}status{% endif %}">
+    {% if m.tags == 'success' %}{% icone "circle-check" %}{% elif m.tags == 'error' %}{% icone "triangle-alert" %}{% else %}{% icone "info" %}{% endif %}
+    <span>{{ m }}</span>
+    <button class="btn btn-fantasma btn-p btn-icone toast-fechar" type="button" aria-label="Fechar aviso">{% icone "x" "i-sm" %}</button>
+  </div>
+  {% endfor %}
+</div>

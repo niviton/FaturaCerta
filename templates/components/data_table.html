@@ -1,0 +1,17 @@
+{% comment %}
+data_table: colunas [{titulo, num}], linhas [{href, celulas: [{v, num, sub}]}], legenda, altura (ex.: 420px).
+Para tabelas com conteúdo rico (pílulas, anéis), use as classes .tabela direto no template da tela.
+{% endcomment %}
+<div class="tabela-caixa" {% if altura %}style="--tabela-altura:{{ altura }}"{% endif %}>
+  <table class="tabela">
+    {% if legenda %}<caption class="sr-only">{{ legenda }}</caption>{% endif %}
+    <thead><tr>{% for c in colunas %}<th scope="col" {% if c.num %}class="num"{% endif %}>{{ c.titulo }}</th>{% endfor %}</tr></thead>
+    <tbody>
+      {% for l in linhas %}
+      <tr {% if l.href %}data-href="{{ l.href }}"{% endif %}>
+        {% for c in l.celulas %}<td {% if c.num %}class="num"{% endif %}>{% if forloop.first %}<span class="principal-col">{{ c.v }}</span>{% else %}{{ c.v }}{% endif %}{% if c.sub %}<span class="sub">{{ c.sub }}</span>{% endif %}</td>{% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

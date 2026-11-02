@@ -1,0 +1,7 @@
+{% load fc %}{# empty_state: icone, titulo, texto, acao_url, acao_texto #}
+<div class="vazio">
+  <span class="vazio-icone">{% icone icone|default:"sparkles" "i-lg" %}</span>
+  <strong>{{ titulo }}</strong>
+  {% if texto %}<p>{{ texto }}</p>{% endif %}
+  {% if acao_url %}<a class="btn btn-primario" href="{{ acao_url }}">{% icone "plus" "i-sm" %}{{ acao_texto }}</a>{% endif %}
+</div>

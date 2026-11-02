@@ -1,0 +1,7 @@
+{% load fc %}{# topbar autônoma (para páginas fora do layout fc/app.html): migalhas = lista [{titulo, url}] #}
+<header class="topbar">
+  <nav class="migalhas" aria-label="Você está em">
+    {% for m in migalhas %}{% if not forloop.first %}{% icone "chevron-right" %}{% endif %}{% if m.url %}<a href="{{ m.url }}">{{ m.titulo }}</a>{% else %}<span>{{ m.titulo }}</span>{% endif %}{% endfor %}
+  </nav>
+  <div class="topbar-acoes">{% include "components/tema_toggle.html" %}</div>
+</header>
