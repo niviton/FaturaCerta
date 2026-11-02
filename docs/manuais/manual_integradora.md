@@ -102,7 +102,8 @@ A tela se atualiza sozinha a cada minuto. **Atualizar agora** consulta os invers
 (Todas, Precisam de atenção, Gerando) e a busca por cliente, usina ou fabricante.
 
 O selo **dados de demonstração** indica um inversor sem credencial: os números são simulados até você conectar a
-API do fabricante (seção 8).
+API do fabricante (seção 8). Quando aparece **demonstração com clima real**, a simulação segue o sol real do
+município da usina: um dia nublado aparece como um dia de pouca geração.
 
 ## 7. Cadastro completo de um cliente
 

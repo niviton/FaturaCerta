@@ -46,7 +46,7 @@ https://re.jrc.ec.europa.eu/api/v5_3/seriescalc?lat=-5.795&lon=-35.209&peakpower
 
 ## Como usar no FaturaCerta (proposta)
 
-1. **Demonstração com clima real**: trocar o clima sorteado do `FakeInversor` pela irradiância do Open-Meteo
+1. **Demonstração com clima real** (implementado, ver D25 em `decisoes.md`): trocar o clima sorteado do `FakeInversor` pela irradiância do Open-Meteo
    (geração = kWp × irradiância × performance ratio). Um dia chuvoso em Natal aparece como dia de pouca geração.
 2. **Esperado ajustado pelo clima**: comparar a geração real com o que a irradiância do dia permitia, e não só
    com a média do mês. Separa "gerou pouco porque nublou" de "gerou pouco com sol" (defeito), reduzindo alarmes

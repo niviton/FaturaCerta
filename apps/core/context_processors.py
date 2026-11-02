@@ -13,6 +13,10 @@ def tenant(request):
     if not u or not u.is_authenticated or u.is_cliente_final:
         return ctx
 
+    from apps.integracoes.clima import ha_clima_real
+
+    ctx["clima_real"] = ha_clima_real()
+
     menus = []
     if u.is_admin_geral:
         menus.append({"titulo": "Plataforma", "itens": [

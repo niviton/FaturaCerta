@@ -2,7 +2,8 @@
 
 Gera duas integradoras, usuários dos três níveis, clientes com cadastro completo, usinas de vários
 fabricantes, medidores próprios, geração diária, curva de hoje, leituras do medidor e 12 faturas por UC.
-As três fontes contam a mesma história (mesma simulação), e cada cliente tem um caso de auditoria:
+A geração segue o clima REAL de cada município (Open-Meteo), quando há internet; sem rede, usa o modelo
+sintético. As três fontes contam a mesma história (mesma simulação), e cada cliente tem um caso de auditoria:
 
     Padaria Sol Nascente ...... injeção não compensada nas 2 últimas faturas
     Clínica Boa Vista ......... GD2 com Fio B cobrado acima do previsto
@@ -37,6 +38,7 @@ from apps.cadastro.models import (
 )
 from apps.core.models import Integradora
 from apps.faturas.models import Fatura
+from apps.integracoes import clima
 from apps.integracoes.fake import energia_fake_da_uc
 from apps.monitoramento import services
 
@@ -63,6 +65,15 @@ def cpf(base9: str) -> str:
     v2 = sum(int(b[i]) * (11 - i) for i in range(10)) * 10 % 11 % 10
     return b + str(v2)
 
+
+# Coordenadas aproximadas dos municípios (usadas para buscar o clima real de cada região).
+COORDS = {
+    "Natal": (Decimal("-5.795"), Decimal("-35.209")),
+    "Parnamirim": (Decimal("-5.916"), Decimal("-35.263")),
+    "Nísia Floresta": (Decimal("-6.091"), Decimal("-35.208")),
+    "Caicó": (Decimal("-6.459"), Decimal("-37.098")),
+    "Currais Novos": (Decimal("-6.261"), Decimal("-36.518")),
+}
 
 PERFIL_NATAL = [140, 128, 136, 120, 116, 106, 114, 131, 140, 150, 147, 146]  # kWh/mês por kWp (aprox.)
 
@@ -205,6 +216,13 @@ class Command(BaseCommand):
             usuario("lima", User.Papel.CLIENTE, "Carlos Lima", integradora=a, cliente=clientes_a[5])
             usuario("gestor2", User.Papel.GESTOR, "Bruno Gestor", integradora=b)
 
+        if clima.ativo():
+            self.stdout.write("Buscando o clima real das regiões (Open-Meteo)...")
+            for (lat, lon), r in clima.atualizar_todas(dias + 45).items():
+                if isinstance(r, str):
+                    self.stdout.write(self.style.WARNING(f"  ({lat}, {lon}) sem clima real, usando o sintético: {r}"))
+                else:
+                    self.stdout.write(f"  ({lat}, {lon}): {r[0]} dias e {r[1]} horas")
         self.stdout.write(f"Gerando {dias} dias de geração (inversores)...")
         for inv in Inversor.objects.filter(usina__integradora__in=[a, b]).select_related("usina"):
             services.coletar_geracao(inv, dias)
@@ -253,7 +271,7 @@ class Command(BaseCommand):
                 data_conexao=data_prot + datetime.timedelta(days=75), tipo_instalacao="metalico" if kwp > 15 else "ceramico",
                 inclinacao_graus=Decimal("10"), azimute_graus=Decimal("0"), geracao_esperada_kwh=esperada(kwp),
                 valor_investido=Decimal(str(round(kwp * 3600, 2))), municipio=ucs[uc_idx].municipio, uf="RN",
-                latitude=Decimal("-5.795000"), longitude=Decimal("-35.209000"))
+                latitude=COORDS[ucs[uc_idx].municipio][0], longitude=COORDS[ucs[uc_idx].municipio][1])
             ArranjoModulos.objects.create(usina=u, fabricante=mfab, modelo=mmod, potencia_wp=wp,
                                           quantidade=round(kwp * 1000 / wp), inclinacao_graus=10, azimute_graus=0,
                                           garantia_anos=25)

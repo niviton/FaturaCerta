@@ -101,3 +101,13 @@ autoconsumo = verde-água, rede = laranja).
 
 **D24. Migrações recriadas.** Ainda sem dados reais, as migrações foram regeneradas do zero nesta reestruturação.
 A partir daqui, toda mudança de modelo vira migração incremental.
+
+## Demonstração com clima real
+
+**D25. Geração de demonstração segue o sol real.** Sem inversores reais conectados, o `FakeInversor` passou a
+usar a irradiação solar real de cada município (Open-Meteo, sem chave), por região de 0,1°: energia do dia =
+kWp × irradiação × PR; potência = kWp × irradiância horária ÷ 1000 × PR. Usamos a irradiação horizontal, que perto
+do equador difere poucos por cento do plano dos módulos (~10°). O clima fica no banco e é atualizado de hora em
+hora; sem rede, volta ao modelo sintético. Nos testes o clima fica desligado e a API é simulada.
+Licença: o Open-Meteo gratuito é só para uso não comercial; antes de vender, contratar o plano pago ou trocar a
+fonte (`CLIMA_PROVIDER`). Pesquisa em `docs/fontes-de-dados-publicas.md`.

@@ -2,7 +2,7 @@
 {% load humanize %}
 {% block title %}Usinas agora · FaturaCerta{% endblock %}
 {% block migalhas %}<span>Usinas agora</span>{% endblock %}
-{% block topo_acoes %}{% if demo %}<span class="selo demo">dados de demonstração</span>{% endif %}
+{% block topo_acoes %}{% if demo %}{% include "componentes/selo_demo.html" %}{% endif %}
   <form method="post" hx-post="{% url 'monitoramento:painel' %}?{{ request.GET.urlencode }}" hx-target="#lista" hx-swap="outerHTML" class="inline">{% csrf_token %}
     <button class="botao pequeno" type="submit"><svg aria-hidden="true"><use href="#i-atualizar"/></svg>Atualizar agora</button></form>{% endblock %}
 {% block content %}

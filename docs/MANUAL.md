@@ -202,7 +202,8 @@ A tela se atualiza sozinha a cada minuto. **Atualizar agora** consulta os invers
 (Todas, Precisam de atenção, Gerando) e a busca por cliente, usina ou fabricante.
 
 O selo **dados de demonstração** indica equipamentos sem credencial: os números são simulados (veja a
-[seção 17](#17-integrações-com-inversores)).
+[seção 17](#17-integrações-com-inversores)). Quando aparece **demonstração com clima real**, a simulação segue a
+irradiação solar real do município: um dia nublado em Natal aparece como um dia de pouca geração.
 
 ## 7. Integradora: cadastro completo de um cliente
 
@@ -536,8 +537,9 @@ python manage.py seed_demo [--dias 400] [--limpar]
 ```
 
 Cria duas integradoras, seis clientes com cadastro completo (um caso de auditoria cada), usinas de seis
-fabricantes, medidores próprios, geração diária, curva de hoje, leituras do medidor e 12 faturas por UC. As três
-fontes saem da mesma simulação, por isso os indícios aparecem coerentes. `--limpar` apaga e recria. Senha de todos
+fabricantes, medidores próprios, geração diária, curva de hoje, leituras do medidor e 12 faturas por UC. Com
+internet, antes de gerar busca o clima real de cada município (seção 17.2), e a geração segue o sol de verdade.
+As três fontes saem da mesma simulação, por isso os indícios aparecem coerentes. `--limpar` apaga e recria. Senha de todos
 os usuários: `FaturaCerta@2026`. As tarifas usadas são fictícias.
 
 ### 14.5 Manuais em PDF
@@ -568,6 +570,7 @@ acesso conforme o perfil.
 | `FIELD_ENCRYPTION_KEY` | derivada da `SECRET_KEY` | Chave Fernet dos campos criptografados. |
 | `MONITOR_HORAS_SEM_COMUNICACAO` | `3` | Horas sem leitura para "sem comunicação". |
 | `MONITOR_LIMIAR_ABAIXO` | `0.8` | Fração do esperado em 7 dias para "abaixo do esperado". |
+| `CLIMA_PROVIDER` | `openmeteo` | Clima real na demonstração. Vazio desliga. Open-Meteo gratuito só para uso não comercial. |
 | `INVERTER_PROVIDER` | `fake` | Provedor usado quando o inversor não indica um. |
 | `METER_PROVIDER` | `fake` | Idem para medidores. |
 | `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL` | vazio, `claude-sonnet-5-5` | IA de leitura de fatura e assistente (próximas fases). |
@@ -636,11 +639,30 @@ A SolarEdge limita a 300 chamadas por dia por chave.
 Para validar um conector: cadastre a credencial, use **Plataforma → Integrações → Testar** e compare com o portal
 do fabricante. Erros aparecem na coluna "Último dado" e na página da usina.
 
-### 17.2 Implementação fictícia
+### 17.2 Implementação fictícia (demonstração com clima real)
 
-`FakeInversor` gera dados realistas e determinísticos (mesma entrada, mesmo resultado): geração diária pela
-geração esperada do projeto (ou kWp × horas de sol de Natal × 0,78), clima regional compartilhado e curva em sino
-entre 5h30 e 17h30. Cenários de demonstração ficam no JSON de credenciais:
+`FakeInversor` gera dados determinísticos (mesma entrada, mesmo resultado). Quando há **clima real** gravado,
+a geração segue o sol de verdade do município da usina:
+
+- energia do dia = kWp × irradiação do dia (kWh/m²) × performance ratio da usina;
+- potência agora = kWp × irradiância da hora (W/m²) ÷ 1000 × performance ratio, interpolada a cada 15 minutos.
+
+O clima vem do **Open-Meteo** (sem chave), por região de 0,1° (~11 km), usando as coordenadas da usina, depois as
+da UC e, na falta das duas, Natal. Fica gravado no banco (`ClimaDiario`, `ClimaHorario`) e é atualizado a cada
+hora pela tarefa `atualizar_clima`. Manualmente:
+
+```bash
+python manage.py atualizar_clima --dias 400 --regerar   # busca o histórico e recalcula a demonstração
+```
+
+> O Open-Meteo gratuito é **só para uso não comercial**. Em produção comercial, contrate o plano pago ou troque a
+> fonte (PVGIS, INMET). `CLIMA_PROVIDER=` (vazio) desliga e volta ao modelo sintético.
+
+Sem clima real (sem internet ou desligado), usa o modelo sintético: geração esperada do projeto (ou kWp × horas de
+sol de Natal × 0,78), clima regional sorteado e curva em sino entre 5h30 e 17h30.
+
+Nas telas, o selo muda para **"demonstração com clima real"**. Cenários de demonstração ficam no JSON de
+credenciais:
 
 ```json
 {"cenario": "parada", "desde": "2026-10-20"}
@@ -732,6 +754,7 @@ Definidas em `CELERY_BEAT_SCHEDULE` (`config/settings.py`):
 | `coletar_curvas_hoje` | 30 min | Curva de potência do dia, quando o fabricante oferece. |
 | `coletar_geracao_todos` | 6 h | Geração diária dos últimos 3 dias (corrige dias parciais) e leituras dos medidores por API. |
 | `consolidar_medicoes_esp` | 15 min | Converte as medições brutas do ESP em leituras diárias. |
+| `atualizar_clima` | 1 h | Clima real (Open-Meteo) das regiões com usinas; refaz a curva e o status de hoje. |
 
 Para rodar manualmente (por exemplo, depois de cadastrar credenciais):
 

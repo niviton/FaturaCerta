@@ -5,6 +5,17 @@ from apps.cadastro.models import Cliente, Concessionaria, UnidadeConsumidora, Us
 from apps.core.models import Integradora
 
 
+@pytest.fixture(autouse=True)
+def _sem_clima_real(settings):
+    """Testes nunca acessam a internet; quem precisa do clima liga e simula a resposta."""
+    from apps.integracoes import clima
+
+    settings.CLIMA_PROVIDER = ""
+    clima.limpar_cache()
+    yield
+    clima.limpar_cache()
+
+
 @pytest.fixture
 def cosern(db):
     return Concessionaria.objects.get_or_create(

@@ -11,7 +11,7 @@
       {% if object.potencia_kwp %}<span class="chip lime">{{ object.potencia_kwp|floatformat:2 }} kWp</span>{% endif %}
       {% if object.enquadramento %}<span class="chip cobalto">{{ object.enquadramento }}</span>{% endif %}
       {% for m in resumo.marcas %}<span class="chip">{{ m }}</span>{% endfor %}
-      {% if resumo.demo %}<span class="selo demo">dados de demonstração</span>{% endif %}
+      {% if resumo.demo %}{% include "componentes/selo_demo.html" %}{% endif %}
     </div>
   </div>
   <div class="acoes">

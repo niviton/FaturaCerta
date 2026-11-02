@@ -37,6 +37,19 @@ def coletar_curvas_hoje(integradora_id=None):
 
 
 @shared_task
+def atualizar_clima(dias=3):
+    """Clima real (Open-Meteo) das regiões com usinas; depois refaz o status e a curva de hoje."""
+    from apps.integracoes import clima
+
+    if not clima.ativo():
+        return {}
+    resultado = clima.atualizar_todas(dias)
+    coletar_curvas_hoje()
+    coletar_status_todos()
+    return {f"{k[0]},{k[1]}": v for k, v in resultado.items()}
+
+
+@shared_task
 def consolidar_medicoes_esp():
     n = 0
     for m in Medidor.objects.filter(provedor_api="esp").exclude(token_hash=""):

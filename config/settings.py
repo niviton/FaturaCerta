@@ -117,6 +117,7 @@ CELERY_BEAT_SCHEDULE = {
                        "kwargs": {"dias": 3}},
     "curvas-do-dia": {"task": "apps.monitoramento.tasks.coletar_curvas_hoje", "schedule": 30 * 60},
     "consolidar-esp": {"task": "apps.monitoramento.tasks.consolidar_medicoes_esp", "schedule": 15 * 60},
+    "clima-real": {"task": "apps.monitoramento.tasks.atualizar_clima", "schedule": 60 * 60},
 }
 
 # Monitoramento (padrões; por integradora na fase de alertas)
@@ -125,6 +126,10 @@ MONITOR_LIMIAR_ABAIXO = float(os.environ.get("MONITOR_LIMIAR_ABAIXO", 0.8))  # 7
 MONITOR_HORA_INICIO, MONITOR_HORA_FIM = 8, 16  # janela em que geração zero indica parada
 
 # Integrações
+# Clima real para a demonstração (Open-Meteo; gratuito só para uso NÃO comercial). Vazio desliga.
+CLIMA_PROVIDER = os.environ.get("CLIMA_PROVIDER", "openmeteo")
+CLIMA_LOCAL_PADRAO = (-5.795, -35.209)  # Natal-RN, quando a usina não tem coordenadas
+
 INVERTER_PROVIDER = os.environ.get("INVERTER_PROVIDER", "fake")
 METER_PROVIDER = os.environ.get("METER_PROVIDER", "fake")
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
