@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import GeracaoDiaria, LeituraMedidor, StatusAtual
+from .models import GeracaoDiaria, LeituraMedidor, MedicaoBruta, StatusAtual
 
 
 @admin.register(GeracaoDiaria)
@@ -17,4 +17,10 @@ class StatusAtualAdmin(admin.ModelAdmin):
 
 @admin.register(LeituraMedidor)
 class LeituraMedidorAdmin(admin.ModelAdmin):
-    list_display = ["medidor", "data", "consumo_kwh", "injecao_kwh", "demo"]
+    list_display = ["medidor", "data", "importacao_kwh", "exportacao_kwh", "carga_kwh", "demo"]
+
+
+@admin.register(MedicaoBruta)
+class MedicaoBrutaAdmin(admin.ModelAdmin):
+    list_display = ["medidor", "momento", "potencia_w", "importacao_kwh", "exportacao_kwh", "tensao_v"]
+    list_filter = ["medidor"]

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Faturas · FaturaCerta{% endblock %}
+{% block migalhas %}<span>Faturas</span>{% endblock %}
+{% block content %}
+<div class="cab">
+  <div><h1>Faturas</h1><p>{{ total }} fatura{{ total|pluralize }} de todos os clientes. Clique numa fatura para ver o cruzamento com o inversor e o medidor próprio.</p></div>
+  <div class="acoes"><a class="botao principal" href="{% url 'faturas:nova' %}"><svg aria-hidden="true"><use href="#i-mais"/></svg>Lançar fatura</a></div>
+</div>
+<form class="filtros" method="get">
+  <fieldset class="segmentos"><legend class="sr">Situação</legend>
+    <label class="segmento"><input type="radio" name="status" value="" {% if not request.GET.status %}checked{% endif %} onchange="this.form.submit()"> Todas</label>
+    {% for v, n in status_choices %}<label class="segmento"><input type="radio" name="status" value="{{ v }}" {% if request.GET.status == v %}checked{% endif %} onchange="this.form.submit()"> {{ n }} <span class="secundario">&nbsp;{% for k, c in contagem.items %}{% if k == v %}{{ c }}{% endif %}{% endfor %}</span></label>{% endfor %}
+  </fieldset>
+  <label class="sr" for="q">Buscar</label><input type="search" id="q" name="q" value="{{ request.GET.q }}" placeholder="Cliente ou número da UC">
+  <button class="botao" type="submit">Buscar</button>
+</form>
+{% include "faturas/_tabela.html" with faturas=object_list %}
+{% endblock %}

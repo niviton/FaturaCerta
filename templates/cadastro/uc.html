@@ -1,60 +1,152 @@
 {% extends "base.html" %}
 {% block title %}{{ object }} · FaturaCerta{% endblock %}
+{% block migalhas %}<a href="{% url 'cadastro:clientes' %}">Clientes</a><span>/</span><a href="{% url 'cadastro:cliente' object.cliente_id %}">{{ object.cliente }}</a><span>/</span><span>{{ object }}</span>{% endblock %}
 {% block content %}
-<div class="cabecalho">
-  <div><h1>{{ object }}</h1><p><a href="{% url 'cadastro:cliente' object.cliente_id %}">{{ object.cliente }}</a> · {{ object.concessionaria.nome }}</p></div>
+<div class="cab">
+  <div>
+    <h1>{{ object }}</h1>
+    <p>{{ object.cliente }} · {{ object.concessionaria.nome }}{% if object.codigo_cliente %} · código do cliente {{ object.codigo_cliente }}{% endif %}</p>
+    <div class="chips">
+      <span class="chip cobalto">{{ object.perfil_tarifario }}</span>
+      {% if object.custo_disponibilidade_kwh %}<span class="chip">mínimo {{ object.custo_disponibilidade_kwh }} kWh</span>{% endif %}
+      {% if object.demanda_contratada_kw %}<span class="chip">demanda {{ object.demanda_contratada_kw|floatformat:0 }} kW</span>{% endif %}
+      {% for u in usinas %}<span class="chip lime">{{ u.nome }} · {{ u.enquadramento|default:"GD ?" }}</span>{% endfor %}
+    </div>
+  </div>
   <div class="acoes">
     <a class="botao" href="{% url 'cadastro:uc_editar' object.pk %}">Editar UC</a>
-    <a class="botao principal" href="{% url 'cadastro:usina_nova' %}?uc={{ object.pk }}">Nova usina nesta UC</a>
+    {% if not medidores %}<a class="botao" href="{% url 'cadastro:medidor_novo' object.pk %}">Vincular medidor próprio</a>{% endif %}
+    <a class="botao principal" href="{% url 'faturas:nova' %}?uc={{ object.pk }}"><svg aria-hidden="true"><use href="#i-mais"/></svg>Lançar fatura</a>
   </div>
 </div>
 
 {% if pendencias %}
-<div class="aviso" role="status"><strong>Cadastro incompleto.</strong> Para ligar todas as regras de auditoria, preencha:
-  <ul>{% for p in pendencias %}<li>{{ p }}</li>{% endfor %}</ul>
-</div>
+<div class="aviso info" role="status"><strong>Faltam dados para ligar todas as regras:</strong> {{ pendencias|join:", " }}. <a href="{% url 'cadastro:uc_editar' object.pk %}">Completar cadastro</a></div>
 {% endif %}
 
-<dl class="ficha">
-  <div><dt>Número da UC</dt><dd>{{ object.numero_uc }}</dd></div>
-  <div><dt>Código do cliente</dt><dd>{{ object.codigo_cliente|default:"—" }}</dd></div>
-  <div><dt>Grupo / subgrupo</dt><dd>{{ object.grupo }} {{ object.subgrupo }}</dd></div>
-  <div><dt>Tipo de ligação</dt><dd>{{ object.get_tipo_ligacao_display|default:"—" }}{% if object.custo_disponibilidade_kwh %} ({{ object.custo_disponibilidade_kwh }} kWh mínimo){% endif %}</dd></div>
-  <div><dt>Modalidade tarifária</dt><dd>{{ object.get_modalidade_tarifaria_display }}</dd></div>
-  <div><dt>Demanda contratada</dt><dd>{% if object.demanda_contratada_kw %}{{ object.demanda_contratada_kw }} kW{% else %}—{% endif %}</dd></div>
-  <div><dt>Endereço</dt><dd>{{ object.logradouro }} {{ object.numero }} {{ object.bairro }}</dd></div>
-  <div><dt>Município</dt><dd>{{ object.municipio|default:"—" }}{% if object.uf %}/{{ object.uf }}{% endif %}</dd></div>
-  <div><dt>E-mail da fatura</dt><dd>{{ object.email_fatura|default:"—" }}</dd></div>
-</dl>
+<nav class="abas" aria-label="Seções da UC">
+  {% for chave, nome in abas %}<a href="?aba={{ chave }}" {% if aba == chave %}aria-current="page"{% endif %}>{{ nome }}</a>{% endfor %}
+</nav>
 
-<h2>Regras de auditoria nesta UC</h2>
-<table class="itens">
-  <thead><tr><th>Regra</th><th>Situação</th><th>O que falta</th></tr></thead>
-  <tbody>{% for r in regras %}
-  <tr>
-    <td>{{ r.nome }}</td>
-    <td>{% if r.nao_se_aplica %}<span class="selo neutro">não se aplica</span>{% elif r.ativa %}<span class="selo confere">ativa</span>{% else %}<span class="selo diverge">desligada</span>{% endif %}</td>
-    <td class="secundario">{% if not r.nao_se_aplica %}{{ r.faltando|join:", " }}{% endif %}</td>
-  </tr>
-  {% endfor %}</tbody>
-</table>
+{% if aba == "analise" %}
+  {% if sel %}
+  <div class="cab" style="margin-bottom:1rem">
+    <div><h2>Período {{ sel.rotulo }}: {{ sel.inicio|date:"d/m" }} a {{ sel.fim|date:"d/m/Y" }} ({{ sel.dias }} dias)</h2>
+      <p>{% if sel.fatura %}Janela de leitura da fatura. A geração do inversor é somada exatamente nestas datas.{% else %}Sem fatura neste período: mês civil, só com inversor e medidor próprio.{% endif %}</p></div>
+    {% if balancos|length > 1 %}<form method="get" class="acoes"><input type="hidden" name="aba" value="analise"><label class="sr" for="fatura">Período</label>
+      <select id="fatura" name="fatura" onchange="this.form.submit()">{% for b in balancos reversed %}{% if b.fatura %}<option value="{{ b.fatura.pk }}" {% if b == sel %}selected{% endif %}>{{ b.rotulo }}{% if b.indicios %} · {{ b.indicios|length }} indício{{ b.indicios|length|pluralize }}{% endif %}</option>{% endif %}{% endfor %}</select></form>{% endif %}
+  </div>
 
-<h2>Saldo de créditos</h2>
-{% if lotes %}
-<table class="itens">
-  <thead><tr><th>Mês de geração</th><th>Posto</th><th class="num">Gerado (kWh)</th><th class="num">Saldo (kWh)</th><th>Validade</th></tr></thead>
-  <tbody>{% for l in lotes %}
-  <tr><td>{{ l.mes_referencia|date:"m/Y" }}</td><td>{{ l.posto|default:"—" }}</td><td class="num">{{ l.kwh_gerado }}</td><td class="num">{{ l.kwh_saldo }}</td><td>{{ l.validade|date:"m/Y" }}</td></tr>
-  {% endfor %}</tbody>
-</table>
-{% else %}<p class="secundario">Nenhum lote de créditos registrado.</p>{% endif %}
-<form method="post" action="{% url 'cadastro:lote_novo' object.pk %}">
-  {% csrf_token %}
-  <fieldset><legend>Adicionar lote de créditos</legend>
-    <div class="grade-meses" style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));">
-      {% for field in form_lote %}{% include "cadastro/_campo.html" %}{% endfor %}
-    </div>
-    <button class="botao" type="submit">Adicionar lote</button>
-  </fieldset>
-</form>
+  <div class="fontes">
+    <section class="fonte {% if not fontes.inversor %}ausente{% endif %}" aria-labelledby="f1">
+      <div class="fonte-cab"><span class="n">1</span><h3 id="f1">Inversor</h3></div>
+      {% if sel.geracao_kwh is not None %}
+      <dl class="ficha uma">
+        <div><dt>Gerado</dt><dd>{{ sel.geracao_kwh|floatformat:1 }} kWh</dd></div>
+        <div><dt>Esperado</dt><dd>{{ sel.geracao_esperada_kwh|floatformat:1|default:"—" }} kWh</dd></div>
+        <div><dt>Desempenho</dt><dd>{% if sel.desempenho is not None %}{{ sel.desempenho }}%{% else %}—{% endif %}</dd></div>
+      </dl>
+      {% else %}<p class="secundario pequeno">Sem usina junto à carga com inversor nesta UC.</p>{% endif %}
+    </section>
+    <section class="fonte {% if not fontes.medidor %}ausente{% endif %}" aria-labelledby="f2">
+      <div class="fonte-cab"><span class="n">2</span><h3 id="f2">Medidor próprio</h3></div>
+      {% if sel.esp_cobertura is not None %}
+      <dl class="ficha uma">
+        <div><dt>Consumido da rede</dt><dd>{{ sel.esp_importacao_kwh|floatformat:1|default:"—" }} kWh</dd></div>
+        <div><dt>Injetado na rede</dt><dd>{{ sel.esp_exportacao_kwh|floatformat:1|default:"—" }} kWh</dd></div>
+        <div><dt>Consumo da carga</dt><dd>{{ sel.esp_carga_kwh|floatformat:1|default:"—" }}{% if sel.esp_carga_kwh is not None %} kWh{% endif %}</dd></div>
+        <div><dt>Dias com leitura</dt><dd>{% widthratio sel.esp_cobertura 1 100 %}%</dd></div>
+      </dl>
+      {% else %}<p class="secundario pequeno">Sem medidor próprio. <a href="{% url 'cadastro:medidor_novo' object.pk %}">Vincular um ESP</a> para provar o que entra e sai da rede.</p>{% endif %}
+    </section>
+    <section class="fonte {% if not sel.fatura %}ausente{% endif %}" aria-labelledby="f3">
+      <div class="fonte-cab"><span class="n">3</span><h3 id="f3">Concessionária</h3>{% if sel.fatura %}<span class="selo {% if sel.indicios %}diverge{% else %}confere{% endif %}" style="margin-left:auto">{% if sel.indicios %}{{ sel.indicios|length }} indício{{ sel.indicios|length|pluralize }}{% else %}confere{% endif %}</span>{% endif %}</div>
+      {% if sel.fatura %}
+      <dl class="ficha uma">
+        <div><dt>Consumo faturado</dt><dd>{{ sel.fat_consumo|floatformat:1 }} kWh</dd></div>
+        <div><dt>Injetado</dt><dd>{{ sel.fat_injetada|floatformat:1 }} kWh</dd></div>
+        <div><dt>Compensado</dt><dd>{{ sel.fat_compensada|floatformat:1 }} kWh</dd></div>
+        <div><dt>Total cobrado</dt><dd>R$ {{ sel.fat_total|floatformat:2 }}</dd></div>
+      </dl>
+      {% else %}<p class="secundario pequeno">Nenhuma fatura neste período. <a href="{% url 'faturas:nova' %}?uc={{ object.pk }}">Lançar fatura</a></p>{% endif %}
+    </section>
+  </div>
+
+  <div class="kpis" style="margin-top:1rem">
+    <div class="kpi"><span class="kpi-rotulo">Autoconsumo (sol na hora)</span><span class="kpi-valor">{{ sel.autoconsumo_kwh|floatformat:0|default:"—" }}<small>kWh</small></span><span class="kpi-rodape">gerado − injetado; não passa pelo medidor da concessionária</span></div>
+    <div class="kpi"><span class="kpi-rotulo">Consumo real da instalação</span><span class="kpi-valor">{{ sel.consumo_real_kwh|floatformat:0|default:"—" }}<small>kWh</small></span><span class="kpi-rodape">{% if sel.esp_carga_kwh is not None %}medido na carga{% else %}rede + autoconsumo{% endif %}</span></div>
+    <div class="kpi energia"><span class="kpi-rotulo">Atendido pelo sol</span><span class="kpi-valor">{{ sel.pct_atendido_solar|default:"—" }}<small>%</small></span><span class="kpi-rodape">autoconsumo + compensação</span></div>
+    <div class="kpi"><span class="kpi-rotulo">Economia estimada</span><span class="kpi-valor">{% if sel.economia_estimada is not None %}<small>R$</small> {{ sel.economia_estimada|floatformat:0 }}{% else %}—{% endif %}</span><span class="kpi-rodape">estimativa pela tarifa de referência{% if sel.custo_sem_solar_estimado %}; sem solar ~R$ {{ sel.custo_sem_solar_estimado|floatformat:0 }}{% endif %}</span></div>
+  </div>
+
+  <section class="painel">
+    <div class="painel-cab"><div><h2>Indícios para auditoria</h2><p>Cruzamento automático das fontes em kWh. O valor a recuperar em R$ sai do motor de regras com as tabelas da ANEEL.</p></div></div>
+    {% if sel.indicios %}
+    <ul class="indicios">{% for i in sel.indicios %}<li class="indicio {{ i.gravidade }}"><span class="marca-g"></span><strong>{{ i.titulo }}</strong><span>{{ i.detalhe }}</span></li>{% endfor %}</ul>
+    {% else %}<p class="aviso ok" style="margin:0">As fontes disponíveis batem entre si neste período.</p>{% endif %}
+  </section>
+
+  <div class="grade g-2" style="margin-top:1rem">
+    {% if g_balanco %}{% include "componentes/grafico.html" with id="g-bal" dados=g_balanco titulo="Para onde foi a energia" sub="Barras: consumo real (autoconsumo + rede). Linha: geração do inversor." %}{% endif %}
+    {% if g_consumo %}{% include "componentes/grafico.html" with id="g-cons" dados=g_consumo titulo="Consumo: concessionária × medidor próprio" sub="Se a fatura fica sempre acima por um fator fixo, suspeite da constante do medidor." %}{% endif %}
+    {% if g_inj %}{% include "componentes/grafico.html" with id="g-inj" dados=g_inj titulo="Injetado × compensado" sub="Injeção sem compensação e sem saldo que explique é indício de erro." %}{% endif %}
+    {% if g_custo %}{% include "componentes/grafico.html" with id="g-custo" dados=g_custo titulo="Quanto pagou × quanto pagaria sem solar" sub="Sem solar é estimativa pela tarifa de referência da concessionária." %}{% endif %}
+  </div>
+  {% else %}
+  <div class="vazio"><p>Ainda não há dados para analisar esta conta.</p><p>Vincule o inversor da usina, um medidor próprio ou lance a primeira fatura.</p>
+    <a class="botao principal" href="{% url 'faturas:nova' %}?uc={{ object.pk }}">Lançar fatura</a></div>
+  {% endif %}
+
+{% elif aba == "faturas" %}
+  {% include "faturas/_tabela.html" with faturas=faturas %}
+
+{% elif aba == "perfil" %}
+<div class="grade g-2">
+  <section class="painel">
+    <div class="painel-cab"><h2>Ficha da unidade</h2><a class="botao pequeno" href="{% url 'cadastro:uc_editar' object.pk %}">Editar</a></div>
+    <dl class="ficha uma">
+      <div><dt>Número da UC</dt><dd>{{ object.numero_uc }}</dd></div>
+      <div><dt>Código do cliente</dt><dd>{{ object.codigo_cliente|default:"—" }}</dd></div>
+      <div><dt>Grupo / subgrupo</dt><dd>{{ object.get_grupo_display }} · {{ object.subgrupo|default:"—" }}</dd></div>
+      <div><dt>Classe</dt><dd>{{ object.get_classe_display|default:"—" }}</dd></div>
+      <div><dt>Ligação / tensão</dt><dd>{{ object.get_tipo_ligacao_display|default:"—" }}{% if object.tensao_fornecimento_v %} · {{ object.tensao_fornecimento_v }} V{% endif %}</dd></div>
+      <div><dt>Modalidade tarifária</dt><dd>{{ object.get_modalidade_tarifaria_display }}{% if object.tarifa_social %} · tarifa social{% endif %}</dd></div>
+      <div><dt>Demanda contratada</dt><dd>{% if object.demanda_contratada_kw %}{{ object.demanda_contratada_kw }} kW{% if object.demanda_contratada_ponta_kw %} · ponta {{ object.demanda_contratada_ponta_kw }} kW{% endif %}{% else %}—{% endif %}</dd></div>
+      <div><dt>Medidor da concessionária</dt><dd>{{ object.numero_medidor_concessionaria|default:"—" }}{% if object.constante_medidor %} · constante {{ object.constante_medidor|floatformat:-3 }}{% endif %}</dd></div>
+      <div><dt>Consumo antes da usina</dt><dd>{% if object.consumo_medio_kwh %}{{ object.consumo_medio_kwh|floatformat:0 }} kWh/mês{% else %}—{% endif %}</dd></div>
+      <div><dt>Endereço</dt><dd>{{ object.endereco_curto|default:"—" }}</dd></div>
+      <div><dt>E-mail da fatura</dt><dd>{{ object.email_fatura|default:"—" }}</dd></div>
+    </dl>
+  </section>
+  <section class="painel">
+    <div class="painel-cab"><div><h2>Regras de auditoria</h2><p>Quais valem para esta UC e o que falta para ligar as desligadas.</p></div></div>
+    <div class="tabela-caixa"><table class="itens"><tbody>{% for r in regras %}
+      <tr><td>{{ r.nome }}{% if not r.nao_se_aplica and r.faltando %}<span class="sub">falta: {{ r.faltando|join:", " }}</span>{% endif %}</td>
+          <td class="num">{% if r.nao_se_aplica %}<span class="selo neutro">não se aplica</span>{% elif r.ativa %}<span class="selo confere">ativa</span>{% else %}<span class="selo diverge">desligada</span>{% endif %}</td></tr>
+    {% endfor %}</tbody></table></div>
+  </section>
+</div>
+<section class="painel">
+  <div class="painel-cab"><div><h2>Medidores próprios</h2><p>Fonte 2 da auditoria.</p></div><a class="botao pequeno" href="{% url 'cadastro:medidor_novo' object.pk %}">Novo medidor</a></div>
+  {% for m in medidores %}
+  <dl class="ficha"><div><dt>{{ m.nome }}</dt><dd>{{ m.get_tipo_display }}</dd></div><div><dt>Ponto</dt><dd>{{ m.get_ponto_medicao_display }}</dd></div>
+    <div><dt>Origem</dt><dd>{{ m.get_provedor_api_display }}{% if m.provedor_api == "esp" %} · token {{ m.token_prefixo|default:"não gerado" }}…{% endif %}</dd></div>
+    <div><dt>Último envio</dt><dd>{{ m.ultimo_contato|date:"d/m H:i"|default:"—" }} · <a href="{% url 'cadastro:medidor_editar' object.pk m.pk %}">editar</a>{% if m.provedor_api == "esp" %} · <a href="{% url 'cadastro:medidor_token' object.pk m.pk %}">token e instruções</a>{% endif %}</dd></div></dl>
+  {% empty %}<p class="secundario">Nenhum medidor próprio nesta UC.</p>{% endfor %}
+</section>
+
+{% elif aba == "creditos" %}
+<section class="painel">
+  <div class="painel-cab"><div><h2>Saldo de créditos por lote</h2><p>Validade de 60 meses. Os mais antigos são usados primeiro.</p></div></div>
+  {% if lotes %}
+  <div class="tabela-caixa"><table class="itens">
+    <thead><tr><th>Mês de geração</th><th>Posto</th><th class="num">Gerado (kWh)</th><th class="num">Saldo (kWh)</th><th>Validade</th></tr></thead>
+    <tbody>{% for l in lotes %}<tr><td>{{ l.mes_referencia|date:"m/Y" }}</td><td>{{ l.posto|default:"—" }}</td><td class="num">{{ l.kwh_gerado }}</td><td class="num">{{ l.kwh_saldo }}</td><td>{{ l.validade|date:"m/Y" }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="secundario">Nenhum lote registrado.</p>{% endif %}
+  <form method="post" action="{% url 'cadastro:lote_novo' object.pk %}" style="margin-top:1rem">{% csrf_token %}
+    <div class="campos" style="grid-template-columns:repeat(4,minmax(0,1fr))">{% for field in form_lote %}{% include "cadastro/_campo.html" %}{% endfor %}</div>
+    <button class="botao" type="submit">Adicionar lote</button></form>
+</section>
+{% endif %}
 {% endblock %}

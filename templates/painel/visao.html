@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}Visão geral · FaturaCerta{% endblock %}
+{% block migalhas %}<span>{{ tenant }}</span><span>/</span><span>Visão geral</span>{% endblock %}
+{% block topo_acoes %}{% if demo %}<span class="selo demo">dados de demonstração</span>{% endif %}{% endblock %}
+{% block content %}
+<div class="cab">
+  <div><h1>Visão geral</h1><p>{{ n_clientes }} cliente{{ n_clientes|pluralize }}, {{ n_usinas }} usina{{ n_usinas|pluralize }} e {{ kwp|floatformat:1 }} kWp sob monitoramento.</p></div>
+  <div class="acoes"><a class="botao" href="{% url 'monitoramento:painel' %}">Usinas agora</a><a class="botao principal" href="{% url 'cadastro:cliente_novo' %}"><svg aria-hidden="true"><use href="#i-mais"/></svg>Novo cliente</a></div>
+</div>
+
+<div class="kpis">
+  <div class="kpi energia"><span class="kpi-rotulo"><svg width="14" height="14" aria-hidden="true"><use href="#i-raio"/></svg>Potência agora</span>
+    <span class="kpi-valor">{{ potencia|floatformat:1 }}<small>kW</small></span><span class="kpi-rodape">{{ gerando }} de {{ n_usinas }} usinas gerando</span></div>
+  <div class="kpi"><span class="kpi-rotulo">Gerado hoje</span><span class="kpi-valor">{{ hoje_kwh|floatformat:0|intcomma }}<small>kWh</small></span><span class="kpi-rodape">soma de todos os fabricantes</span></div>
+  <div class="kpi"><span class="kpi-rotulo">Gerado no mês</span><span class="kpi-valor">{{ mes_kwh|floatformat:0|intcomma }}<small>kWh</small></span>
+    <span class="kpi-rodape">{% if mes_pct is not None %}<span class="{% if mes_pct >= 90 %}delta-bom{% else %}delta-ruim{% endif %}">{{ mes_pct }}%</span> do esperado até hoje{% endif %}</span></div>
+  <div class="kpi {% if atencao %}alerta{% endif %}"><span class="kpi-rotulo">Usinas que precisam de atenção</span><span class="kpi-valor">{{ atencao|length }}</span><span class="kpi-rodape">paradas, sem comunicação ou abaixo do esperado</span></div>
+  <div class="kpi {% if n_faturas_div %}alerta{% endif %}"><span class="kpi-rotulo">Faturas com divergência</span><span class="kpi-valor">{{ n_faturas_div }}</span><span class="kpi-rodape">{% if ultimo_mes %}{{ n_faturas_mes }} faturas de {{ ultimo_mes|date:"m/Y" }}{% endif %}</span></div>
+</div>
+
+<div class="grade g-21" style="margin-top:1rem">
+  {% if g_diario %}{% include "componentes/grafico.html" with id="g-diario" dados=g_diario titulo="Geração da carteira, 30 dias" sub="Todas as usinas somadas. Linha tracejada: esperado dos projetos." %}{% endif %}
+  <section class="painel">
+    <div class="painel-cab"><div><h2>Precisa de atenção</h2><p>Ordenado pela gravidade.</p></div><a class="botao pequeno" href="{% url 'monitoramento:painel' %}?filtro=atencao">Ver todas</a></div>
+    {% if atencao or faturas_div %}
+    <ul class="indicios">
+      {% for r in atencao|slice:":6" %}<li class="indicio {% if r.situacao == 'abaixo' %}media{% else %}alta{% endif %}"><span class="marca-g"></span>
+        <strong><a href="{% url 'cadastro:usina' r.usina.pk %}">{{ r.usina.nome }}</a>: {{ r.rotulo|lower }}</strong>
+        <span>{{ r.usina.cliente }}{% if r.pct_7d is not None %} · {{ r.pct_7d }}% do esperado em 7 dias{% endif %}</span></li>{% endfor %}
+      {% for f in faturas_div|slice:":4" %}<li class="indicio alta"><span class="marca-g"></span>
+        <strong><a href="{% url 'cadastro:uc' f.uc_id %}?aba=analise&fatura={{ f.pk }}">Fatura {{ f.mes_referencia|date:"m/Y" }} com divergência</a></strong>
+        <span>{{ f.uc.cliente }} · {{ f.uc }}</span></li>{% endfor %}
+    </ul>
+    {% else %}<p class="aviso ok" style="margin:0">Tudo em ordem agora.</p>{% endif %}
+  </section>
+</div>
+
+<div class="grade g-2" style="margin-top:1rem">
+  {% if g_curva %}{% include "componentes/grafico.html" with id="g-curva" dados=g_curva titulo="Potência da carteira hoje" sub="Soma das usinas a cada 15 minutos." altura="baixo" %}{% endif %}
+  {% if g_desemp %}{% include "componentes/grafico.html" with id="g-desemp" dados=g_desemp titulo="Desempenho por usina, 7 dias" sub="Percentual da geração esperada. Laranja: abaixo de 80%. Vermelho: parada." altura="baixo" %}{% endif %}
+</div>
+<div class="grade g-21" style="margin-top:1rem">
+  {% if g_mensal %}{% include "componentes/grafico.html" with id="g-mensal" dados=g_mensal titulo="Geração mensal, 12 meses" sub="Gerado × esperado dos projetos." %}{% endif %}
+  {% if g_fab %}{% include "componentes/grafico.html" with id="g-fab" dados=g_fab titulo="Potência por fabricante" sub="kWp instalados por marca de inversor." %}{% endif %}
+</div>
+{% endblock %}

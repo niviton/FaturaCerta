@@ -1,0 +1,16 @@
+{% extends "base_documento.html" %}
+{% block corpo %}
+<div class="faixa-marca"></div>
+<header class="portal-topo">
+  <a class="marca" href="{% url 'portal:inicio' %}">{% if tenant.logo %}<img src="{{ tenant.logo.url }}" alt="">{% endif %}{{ tenant }}</a>
+  <div class="direita">
+    <span class="secundario pequeno">{{ user.nome_exibicao }}</span>
+    <form method="post" action="{% url 'logout' %}" class="inline">{% csrf_token %}<button class="botao fantasma pequeno" type="submit">Sair</button></form>
+  </div>
+</header>
+<main class="portal" id="conteudo">{% block content %}{% endblock %}
+  <footer class="secundario pequeno" style="margin-top:2.5rem;border-top:1px solid var(--linha);padding-top:1rem">
+    Dúvidas? Fale com a {{ tenant }}{% if tenant.whatsapp %} pelo WhatsApp {{ tenant.whatsapp }}{% elif tenant.telefone_contato %} pelo {{ tenant.telefone_contato }}{% endif %}{% if tenant.email_contato %} ou {{ tenant.email_contato }}{% endif %}.
+  </footer>
+</main>
+{% endblock %}

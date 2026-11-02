@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Integrações e APIs · FaturaCerta{% endblock %}
+{% block migalhas %}<a href="{% url 'plataforma:visao' %}">Plataforma</a><span>/</span><span>Integrações e APIs</span>{% endblock %}
+{% block content %}
+<div class="cab">
+  <div><h1>Integrações e APIs</h1><p>Credenciais dos portais dos fabricantes e dispositivos de medição de todas as integradoras. Credenciais ficam criptografadas e nunca são exibidas.</p></div>
+</div>
+
+<form class="filtros" method="get">
+  <label class="sr" for="provedor">Fabricante</label>
+  <select id="provedor" name="provedor" style="max-width:240px" onchange="this.form.submit()"><option value="">Todos os fabricantes</option>
+    {% for p in provedores %}<option value="{{ p }}" {% if p == provedor %}selected{% endif %}>{{ p }}</option>{% endfor %}</select>
+</form>
+
+<section class="painel">
+  <div class="painel-cab"><div><h2>Inversores</h2><p>Fonte 1: geração. "Testar" consulta a API agora.</p></div></div>
+  <div class="tabela-caixa"><table class="itens">
+    <thead><tr><th>Inversor</th><th>Usina / cliente</th><th>Integradora</th><th>API</th><th>ID externo</th><th>Credencial</th><th>Último dado</th><th></th></tr></thead>
+    <tbody>{% for i in inversores %}
+    <tr><td><span class="forte">{{ i }}</span><span class="sub">S/N {{ i.numero_serie|default:"—" }}</span></td>
+        <td>{{ i.usina }}<span class="sub">{{ i.usina.uc_geradora.cliente }}</span></td>
+        <td>{{ i.usina.integradora }}</td><td>{{ i.get_provedor_api_display }}</td><td>{{ i.id_externo|default:"—" }}</td>
+        <td>{% if i.credenciais_configuradas %}<span class="selo confere">configurada</span>{% else %}<span class="selo demo">faltando</span>{% endif %}</td>
+        <td>{{ i.status_atual.coletado_em|date:"d/m H:i"|default:"—" }}{% if i.status_atual.erro %}<span class="sub delta-ruim">{{ i.status_atual.erro|truncatechars:60 }}</span>{% endif %}</td>
+        <td><div class="acoes"><a class="botao pequeno" href="{% url 'plataforma:inversor' i.pk %}">Credenciais</a>
+          <button class="botao pequeno" hx-post="{% url 'plataforma:testar' i.pk %}" hx-target="#teste-{{ i.pk }}" hx-swap="innerHTML">Testar</button></div>
+          <div id="teste-{{ i.pk }}" class="pequeno" aria-live="polite"></div></td></tr>
+    {% empty %}<tr><td colspan="8" class="secundario">Nenhum inversor.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</section>
+
+<section class="painel">
+  <div class="painel-cab"><div><h2>Medidores próprios e dispositivos ESP</h2><p>Fonte 2: o que entra e sai da rede.</p></div></div>
+  <div class="tabela-caixa"><table class="itens">
+    <thead><tr><th>Dispositivo</th><th>UC / cliente</th><th>Integradora</th><th>Ponto de medição</th><th>Origem</th><th>Último envio</th><th></th></tr></thead>
+    <tbody>{% for m in medidores %}
+    <tr><td><span class="forte">{{ m.nome }}</span><span class="sub">{{ m.get_tipo_display }}{% if m.numero_serie %} · {{ m.numero_serie }}{% endif %}</span></td>
+        <td>{{ m.uc }}<span class="sub">{{ m.uc.cliente }}</span></td><td>{{ m.uc.integradora }}</td><td>{{ m.get_ponto_medicao_display }}</td>
+        <td>{{ m.get_provedor_api_display|truncatewords:3 }}{% if m.token_prefixo %}<span class="sub">token {{ m.token_prefixo }}…</span>{% endif %}</td>
+        <td>{% if m.provedor_api == "esp" %}{% if m.online %}<span class="selo confere">online</span>{% else %}<span class="selo atencao">{{ m.ultimo_contato|date:"d/m H:i"|default:"nunca" }}</span>{% endif %}{% else %}—{% endif %}</td>
+        <td><a class="botao pequeno" href="{% url 'plataforma:medidor' m.pk %}">Configurar</a></td></tr>
+    {% empty %}<tr><td colspan="7" class="secundario">Nenhum medidor próprio.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</section>
+{% endblock %}

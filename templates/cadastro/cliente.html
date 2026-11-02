@@ -1,57 +1,160 @@
 {% extends "base.html" %}
-{% block title %}{{ object.nome }} · FaturaCerta{% endblock %}
+{% block title %}{{ object }} · FaturaCerta{% endblock %}
+{% block migalhas %}<a href="{% url 'cadastro:clientes' %}">Clientes</a><span>/</span><span>{{ object }}</span>{% endblock %}
 {% block content %}
-<div class="cabecalho">
-  <div><h1>{{ object.nome }}</h1><p>CPF/CNPJ {{ object.documento }}</p></div>
+<div class="cab">
+  <div>
+    <h1>{{ object }}</h1>
+    <p>{{ object.get_tipo_pessoa_display }} · {{ object.documento_formatado }}{% if object.atividade %} · {{ object.atividade }}{% endif %}</p>
+    <div class="chips">
+      <span class="chip">{{ object.get_segmento_display }}</span>
+      {% for uc in ucs %}<span class="chip cobalto">{{ uc.subgrupo|default:uc.grupo }}{% if uc.tipo_ligacao %} {{ uc.get_tipo_ligacao_display|lower }}{% endif %}</span>{% endfor %}
+      {% for u in usinas %}{% if u.enquadramento %}<span class="chip">{{ u.enquadramento }}</span>{% endif %}{% endfor %}
+      {% if kwp %}<span class="chip lime">{{ kwp|floatformat:1 }} kWp</span>{% endif %}
+      {% for m in marcas %}<span class="chip">{{ m }}</span>{% endfor %}
+      {% if medidores %}<span class="chip">medidor próprio</span>{% endif %}
+    </div>
+  </div>
   <div class="acoes">
-    <a class="botao" href="{% url 'cadastro:cliente_editar' object.pk %}">Editar cliente</a>
-    <a class="botao principal" href="{% url 'cadastro:uc_nova' %}?cliente={{ object.pk }}">Nova UC</a>
+    <a class="botao" href="{% url 'cadastro:cliente_editar' object.pk %}">Editar dados</a>
+    <a class="botao" href="{% url 'cadastro:uc_nova' %}?cliente={{ object.pk }}"><svg aria-hidden="true"><use href="#i-mais"/></svg>UC</a>
+    <a class="botao principal" href="{% url 'cadastro:usina_nova' %}?cliente={{ object.pk }}"><svg aria-hidden="true"><use href="#i-mais"/></svg>Usina</a>
   </div>
 </div>
 
-<dl class="ficha">
-  <div><dt>Contato</dt><dd>{{ object.contato_nome|default:"—" }}</dd></div>
-  <div><dt>E-mail</dt><dd>{{ object.email|default:"—" }}</dd></div>
-  <div><dt>Telefone</dt><dd>{{ object.telefone|default:"—" }}</dd></div>
-  <div><dt>WhatsApp</dt><dd>{{ object.whatsapp|default:"—" }}</dd></div>
-</dl>
+<nav class="abas" aria-label="Seções do cliente">
+  {% for chave, nome in abas %}<a href="?aba={{ chave }}" {% if aba == chave %}aria-current="page"{% endif %}>{{ nome }}
+    {% if chave == "ucs" %}<span class="qtd">{{ ucs|length }}</span>{% elif chave == "usinas" %}<span class="qtd">{{ usinas|length }}</span>{% elif chave == "faturas" %}<span class="qtd">{{ n_faturas }}</span>{% endif %}</a>{% endfor %}
+</nav>
 
-<h2>Unidades consumidoras</h2>
-{% if ucs %}
-<div class="rolagem"><table class="itens">
-  <thead><tr><th>UC</th><th>Código do cliente</th><th>Concessionária</th><th>Grupo</th><th>Município</th></tr></thead>
-  <tbody>{% for uc in ucs %}
-  <tr><td><a href="{% url 'cadastro:uc' uc.pk %}">{{ uc }}</a></td><td>{{ uc.codigo_cliente|default:"—" }}</td>
-      <td>{{ uc.concessionaria.nome }}</td><td>{{ uc.subgrupo|default:uc.grupo }}</td><td>{{ uc.municipio|default:"—" }}</td></tr>
-  {% endfor %}</tbody>
-</table></div>
-{% else %}<p>Nenhuma UC ainda. <a href="{% url 'cadastro:uc_nova' %}?cliente={{ object.pk }}">Cadastre a primeira UC</a>.</p>{% endif %}
+{% if aba == "resumo" %}
+<div class="grade g-21">
+  <div>
+    {% if resumos %}
+    <div class="kpis">
+      {% for r in resumos %}
+      <div class="kpi {% if r.situacao == 'gerando' %}energia{% elif r.precisa_atencao %}alerta{% endif %} s-{{ r.situacao }}">
+        <span class="kpi-rotulo"><span class="luz" aria-hidden="true"></span>{{ r.usina.nome }}</span>
+        <span class="kpi-valor">{{ r.hoje_kwh|floatformat:1 }}<small>kWh hoje</small></span>
+        <span class="kpi-rodape">{{ r.rotulo }} · {{ r.potencia_kw|floatformat:1 }} kW agora · {{ r.marcas|join:" + " }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% if g_curva %}<div style="margin-top:1rem">{% include "componentes/grafico.html" with id="g-curva" dados=g_curva titulo="Potência hoje" sub="Soma de todas as usinas do cliente, a cada 15 minutos." altura="baixo" %}</div>{% endif %}
+    {% if g_diario %}<div style="margin-top:1rem">{% include "componentes/grafico.html" with id="g-diario" dados=g_diario titulo="Geração diária nos últimos 30 dias" sub="Por usina. A linha tracejada é a geração esperada do projeto." %}</div>{% endif %}
+  </div>
+  <div>
+    <section class="painel">
+      <div class="painel-cab"><div><h2>Cadastro para auditoria</h2><p>{{ pct_cadastro }}% completo. Quanto mais completo, mais regras ficam ativas.</p></div></div>
+      <div class="barra-prog lime" aria-hidden="true"><span style="width:{{ pct_cadastro }}%"></span></div>
+      <ol class="passos" style="margin-top:.75rem">
+        {% for titulo, desc, feito in passos %}
+        <li class="{% if feito %}feito{% endif %}"><span class="marca-p">{% if feito %}<svg width="12" height="12" aria-hidden="true"><use href="#i-check"/></svg>{% endif %}</span>
+          <div class="texto">{{ titulo }}<span>{{ desc }}</span></div>
+          <span class="sr">{% if feito %}feito{% else %}pendente{% endif %}</span></li>
+        {% endfor %}
+      </ol>
+    </section>
+    {% if atencao %}
+    <section class="painel">
+      <div class="painel-cab"><h2>Precisa de atenção</h2></div>
+      <ul class="indicios">{% for r in atencao %}<li class="indicio alta"><span class="marca-g"></span><strong>{{ r.usina.nome }}: {{ r.rotulo|lower }}</strong><span>{% if r.pct_7d is not None %}{{ r.pct_7d }}% do esperado nos últimos 7 dias.{% endif %} <a href="{% url 'cadastro:usina' r.usina.pk %}">Ver usina</a></span></li>{% endfor %}</ul>
+    </section>
+    {% endif %}
+  </div>
+</div>
 
-<h2>Usinas</h2>
-{% if resumos %}
-<div class="rolagem"><table class="itens">
-  <thead><tr><th>Usina</th><th>Fabricante</th><th>Situação</th><th class="num">Agora</th><th class="num">Hoje</th><th>UC geradora</th><th>GD</th></tr></thead>
-  <tbody>{% for r in resumos %}
-  <tr class="s-{{ r.situacao }}"><td><a href="{% url 'cadastro:usina' r.usina.pk %}">{{ r.usina.nome }}</a></td>
-      <td>{{ r.marcas|join:" + "|default:"—" }}</td>
-      <td><span class="situacao"><span class="luz" aria-hidden="true"></span>{{ r.rotulo }}</span></td>
-      <td class="num">{{ r.potencia_kw|floatformat:1 }} kW</td><td class="num">{{ r.hoje_kwh|floatformat:1 }} kWh</td>
-      <td>{{ r.usina.uc_geradora }}</td><td>{{ r.usina.enquadramento|default:"—" }}</td></tr>
-  {% endfor %}</tbody>
-</table></div>
-{% else %}<p class="secundario">Nenhuma usina com UC geradora deste cliente.</p>{% endif %}
-
-<h2>Consentimento LGPD</h2>
-{% with c=object.consentimento_vigente %}
-{% if c %}
-<p class="aviso ok">Termo versão {{ c.versao_termo }} aceito em {{ c.data|date:"d/m/Y H:i" }}{% if c.ip %}, IP {{ c.ip }}{% endif %}.</p>
-{% else %}
-<p class="aviso">Sem consentimento registrado. Sem ele, não processamos as faturas deste titular.</p>
+{% if uc_sel %}
+<div class="cab" style="margin:2rem 0 1rem">
+  <div><h2>Conta de energia: {{ uc_sel }}</h2><p>Balanço montado com o inversor, o medidor próprio e a fatura. <a href="{% url 'cadastro:uc' uc_sel.pk %}">Abrir a análise completa</a></p></div>
+  {% if ucs|length > 1 %}<form method="get" class="acoes"><input type="hidden" name="aba" value="resumo"><label class="sr" for="uc">UC</label>
+    <select id="uc" name="uc" onchange="this.form.submit()">{% for uc in ucs %}<option value="{{ uc.pk }}" {% if uc == uc_sel %}selected{% endif %}>{{ uc }}</option>{% endfor %}</select></form>{% endif %}
+</div>
+<div class="grade g-2">
+  {% if g_balanco %}{% include "componentes/grafico.html" with id="g-bal" dados=g_balanco titulo="Para onde foi a energia" sub="Consumo real = autoconsumo + o que veio da rede. Linha: geração do inversor." %}{% endif %}
+  {% if g_inj %}{% include "componentes/grafico.html" with id="g-inj" dados=g_inj titulo="Injetado × compensado" sub="Segundo a fatura da concessionária." %}{% endif %}
+</div>
+{% if indicios_recentes %}
+<section class="painel"><div class="painel-cab"><div><h2>Indícios na última fatura</h2><p>Pontos que a auditoria deve conferir.</p></div></div>
+  <ul class="indicios">{% for i in indicios_recentes %}<li class="indicio {{ i.gravidade }}"><span class="marca-g"></span><strong>{{ i.titulo }}</strong><span>{{ i.detalhe }}</span></li>{% endfor %}</ul></section>
 {% endif %}
-{% endwith %}
-<form method="post" action="{% url 'cadastro:consentimento' object.pk %}" class="formulario">
-  {% csrf_token %}
-  {% for field in form_consentimento %}{% include "cadastro/_campo.html" %}{% endfor %}
-  <button class="botao" type="submit">Registrar consentimento</button>
-</form>
+{% endif %}
+
+{% elif aba == "ucs" %}
+{% if ucs %}
+<section class="painel"><div class="tabela-caixa"><table class="itens">
+  <thead><tr><th>UC</th><th>Código do cliente</th><th>Perfil tarifário</th><th>Concessionária</th><th>Medição própria</th><th>Município</th><th></th></tr></thead>
+  <tbody>{% for uc in ucs %}
+  <tr><td><a class="linha-link" href="{% url 'cadastro:uc' uc.pk %}">{{ uc }}</a><span class="sub">{{ uc.get_classe_display }}</span></td>
+      <td>{{ uc.codigo_cliente|default:"—" }}</td>
+      <td>{{ uc.perfil_tarifario }}{% if uc.demanda_contratada_kw %}<span class="sub">demanda {{ uc.demanda_contratada_kw|floatformat:0 }} kW</span>{% endif %}</td>
+      <td>{{ uc.concessionaria.nome }}</td>
+      <td>{% for m in uc.medidores.all %}<span class="chip">{{ m.get_tipo_display }}</span>{% empty %}<a href="{% url 'cadastro:medidor_novo' uc.pk %}">vincular</a>{% endfor %}</td>
+      <td>{{ uc.municipio|default:"—" }}</td>
+      <td><a class="botao pequeno" href="{% url 'cadastro:uc_editar' uc.pk %}">Editar</a></td></tr>
+  {% endfor %}</tbody>
+</table></div></section>
+{% endif %}
+<p style="margin-top:1rem"><a class="botao principal" href="{% url 'cadastro:uc_nova' %}?cliente={{ object.pk }}"><svg aria-hidden="true"><use href="#i-mais"/></svg>Nova unidade consumidora</a></p>
+
+{% elif aba == "usinas" %}
+{% if resumos %}
+<section class="painel"><div class="tabela-caixa"><table class="itens">
+  <thead><tr><th>Usina</th><th>Situação</th><th class="num">kWp</th><th>Inversores</th><th>GD</th><th>Modalidade</th><th>UC geradora</th><th class="num">7 dias</th></tr></thead>
+  <tbody>{% for r in resumos %}
+  <tr class="s-{{ r.situacao }}"><td><a class="linha-link" href="{% url 'cadastro:usina' r.usina.pk %}">{{ r.usina.nome }}</a><span class="sub">conectada em {{ r.usina.data_conexao|date:"d/m/Y"|default:"—" }}</span></td>
+      <td><span class="situacao"><span class="luz" aria-hidden="true"></span>{{ r.rotulo }}</span></td>
+      <td class="num">{{ r.usina.potencia_kwp|floatformat:1 }}</td><td>{{ r.marcas|join:" + "|default:"—" }}</td>
+      <td>{{ r.usina.enquadramento|default:"—" }}</td><td>{{ r.usina.get_tipo_display }}</td><td>{{ r.usina.uc_geradora }}</td>
+      <td class="num">{% if r.pct_7d is not None %}{{ r.pct_7d }}%{% else %}—{% endif %}</td></tr>
+  {% endfor %}</tbody>
+</table></div></section>
+{% endif %}
+<p style="margin-top:1rem"><a class="botao principal" href="{% url 'cadastro:usina_nova' %}?cliente={{ object.pk }}"><svg aria-hidden="true"><use href="#i-mais"/></svg>Nova usina</a></p>
+
+{% elif aba == "equipamentos" %}
+<div class="grade g-2">
+<section class="painel">
+  <div class="painel-cab"><div><h2>Inversores</h2><p>Fonte 1: geração, pela API do fabricante.</p></div></div>
+  <div class="tabela-caixa"><table class="itens"><thead><tr><th>Equipamento</th><th>Usina</th><th class="num">kW</th><th>API</th></tr></thead><tbody>
+  {% for u in usinas %}{% for i in u.inversores.all %}
+  <tr><td><a class="linha-link" href="{% url 'cadastro:inversor_editar' u.pk i.pk %}">{{ i }}</a><span class="sub">S/N {{ i.numero_serie|default:"—" }} · {{ i.get_tipo_display }}</span></td>
+      <td>{{ u.nome }}</td><td class="num">{{ i.potencia_nominal_kw|default:"—" }}</td>
+      <td>{% if i.credenciais_configuradas %}<span class="selo confere">{{ i.get_provedor_api_display }}</span>{% else %}<span class="selo demo">sem credencial</span>{% endif %}</td></tr>
+  {% endfor %}{% empty %}<tr><td colspan="4" class="secundario">Nenhuma usina cadastrada.</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+<section class="painel">
+  <div class="painel-cab"><div><h2>Medidores próprios</h2><p>Fonte 2: o que entra e sai da rede.</p></div></div>
+  <div class="tabela-caixa"><table class="itens"><thead><tr><th>Dispositivo</th><th>UC</th><th>Ponto</th><th>Conexão</th></tr></thead><tbody>
+  {% for m in medidores %}
+  <tr><td><a class="linha-link" href="{% url 'cadastro:medidor_editar' m.uc_id m.pk %}">{{ m.nome }}</a><span class="sub">{{ m.get_tipo_display }}</span></td><td>{{ m.uc }}</td><td>{{ m.get_ponto_medicao_display|truncatewords:3 }}</td>
+      <td>{% if m.provedor_api == "esp" %}{% if m.online %}<span class="selo confere">online</span>{% elif m.token_hash %}<span class="selo atencao">sem envio recente</span>{% else %}<span class="selo diverge">sem token</span>{% endif %}{% else %}<span class="selo demo">{{ m.get_provedor_api_display|truncatewords:2 }}</span>{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="4" class="secundario">Nenhum medidor. Vincule pela página da UC.</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+</div>
+
+{% elif aba == "faturas" %}
+{% include "faturas/_tabela.html" with faturas=faturas %}
+
+{% elif aba == "acesso" %}
+<div class="grade g-2">
+<section class="painel">
+  <div class="painel-cab"><div><h2>Acesso ao portal do cliente</h2><p>O cliente vê as usinas, a economia e a conta conferida, com a sua marca.</p></div></div>
+  {% for a in acessos %}<p><span class="chip">{{ a.username }}</span> {% if a.last_login %}<span class="secundario pequeno">último acesso {{ a.last_login|date:"d/m/Y H:i" }}</span>{% else %}<span class="secundario pequeno">nunca acessou</span>{% endif %}</p>{% endfor %}
+  <form method="post" action="{% url 'cadastro:acesso_portal' object.pk %}">{% csrf_token %}
+    <div class="campos">{% for field in form_acesso %}{% include "cadastro/_campo.html" %}{% endfor %}</div>
+    <button class="botao azul" type="submit">Criar acesso</button></form>
+</section>
+<section class="painel">
+  <div class="painel-cab"><div><h2>Consentimento LGPD</h2><p>Necessário para receber e processar as faturas do titular.</p></div></div>
+  {% for c in consentimentos %}<p class="aviso ok">Termo v{{ c.versao_termo }} aceito em {{ c.data|date:"d/m/Y H:i" }}{% if c.ip %}, IP {{ c.ip }}{% endif %}{% if c.registrado_por %}, registrado por {{ c.registrado_por.nome_exibicao }}{% endif %}.</p>{% empty %}<p class="aviso">Sem consentimento registrado.</p>{% endfor %}
+  <form method="post" action="{% url 'cadastro:consentimento' object.pk %}">{% csrf_token %}
+    {% for field in form_consentimento %}{% include "cadastro/_campo.html" %}{% endfor %}
+    <button class="botao" type="submit">Registrar consentimento</button></form>
+</section>
+</div>
+{% endif %}
 {% endblock %}

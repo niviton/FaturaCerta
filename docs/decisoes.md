@@ -66,3 +66,38 @@ electric cobalt `#1F4FFF` (faixa do topo, gráficos, seleção) e acid lime `#C8
 principal, "gerando", linha do esperado). Laranja `#FF7A45` e verde `#4ADE80` seguem só para divergência/confere.
 Para links sobre o fundo escuro usamos um cobalto claro `#8EA6FF` (contraste ≥ 4,5:1). A situação da usina usa
 forma e cor (círculo, quadrado, losango), nunca só cor.
+
+## Reestruturação comercial (três perfis e três fontes)
+
+**D18. Três níveis de acesso.**
+1. *Administrador geral* (plataforma): vê tudo; cadastra integradoras e usuários de qualquer perfil; gerencia
+   as credenciais de API dos inversores e os dispositivos ESP de todas as integradoras; vê os logs. Pode "entrar
+   como" uma integradora para operar o painel dela (fica registrado no log, ação "atuar").
+2. *Integradora* (gestor e técnico): carteira de clientes, cadastro completo, monitoramento, faturas e análise.
+   Só o gestor gerencia equipe, acessos ao portal e configurações.
+3. *Cliente final*: portal só de leitura, com a marca da integradora, só com as próprias usinas e contas.
+
+**D19. Três fontes da auditoria.** A análise da conta cruza, na janela de leitura de cada fatura:
+inversor (geração), medidor próprio (importação/exportação/carga) e fatura (consumo, injeção, compensação, valor).
+Derivados: autoconsumo = gerado − injetado; consumo real = medido na carga, ou rede + autoconsumo. Os indícios
+(kWh) apontam o que investigar; o valor a recuperar em R$ continua sendo do motor de regras com tabelas da ANEEL.
+
+**D20. Medidor próprio na UC.** O medidor passou da usina para a unidade consumidora, porque ele mede a entrada
+de energia da instalação. Pode ser ESP32 (envia para `POST /api/medidores/medicoes` com token por dispositivo,
+guardado só como hash), API HTTP ou MQTT. O ESP envia contadores acumulados; a consolidação diária é máx − mín.
+
+**D21. Lançamento manual de fatura antecipado.** Para a análise das três fontes funcionar já, o modelo de fatura e
+o lançamento manual entraram agora. O leitor de PDF (pdfplumber + IA) da próxima fase preenche os mesmos campos.
+
+**D22. Tarifa de referência só para estimativa.** "Sem solar" e "economia" nas telas usam a tarifa de referência
+da concessionária (campo editável, com aviso de estimativa). Nada de regra regulatória depende dela.
+
+**D23. Visual comercial.** A pedido do cliente (o visual anterior não vendia), o painel virou uma aplicação com
+menu lateral por perfil, painéis, indicadores e gráficos Chart.js (servidos localmente, sem CDN). Isso substitui
+"nada de cartões / sem menu lateral" da seção 9. Ficam: as cores pedidas, números tabulares, fichas pontilhadas,
+contraste ≥ 4,5:1, foco visível, alvos ≥ 40–44 px e tabela "Ver os números" em todo gráfico. Paleta dos gráficos
+validada para daltonismo sobre o fundo escuro; cor segue o papel (geração = lime, injeção = cobalto,
+autoconsumo = verde-água, rede = laranja).
+
+**D24. Migrações recriadas.** Ainda sem dados reais, as migrações foram regeneradas do zero nesta reestruturação.
+A partir daqui, toda mudança de modelo vira migração incremental.

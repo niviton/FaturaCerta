@@ -1,0 +1,10 @@
+{# uso: include com id, dados, titulo, sub (opcional), altura (alto|baixo, opcional) #}
+<section class="painel" aria-labelledby="{{ id }}-t">
+  <div class="painel-cab"><div><h2 id="{{ id }}-t">{{ titulo }}</h2>{% if sub %}<p>{{ sub }}</p>{% endif %}</div>{% if extra %}<div>{{ extra }}</div>{% endif %}</div>
+  <div class="grafico-caixa {{ altura }}"><canvas data-fonte="{{ id }}" role="img" aria-label="{{ titulo }}"></canvas></div>
+  {{ dados|json_script:id }}
+  <details class="dados"><summary>Ver os números</summary>
+    <div class="tabela-caixa"><table class="itens"><thead><tr><th></th>{% for c in dados.tabela.cabecalho %}<th class="num">{{ c }}</th>{% endfor %}</tr></thead>
+    <tbody>{% for linha in dados.tabela.linhas %}<tr>{% for v in linha %}{% if forloop.first %}<td>{{ v }}</td>{% else %}<td class="num">{% if v is None %}—{% else %}{{ v|floatformat:dados.casas }}{% endif %}</td>{% endif %}{% endfor %}</tr>{% endfor %}</tbody></table></div>
+  </details>
+</section>

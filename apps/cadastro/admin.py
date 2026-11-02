@@ -59,7 +59,7 @@ class UsinaAdmin(admin.ModelAdmin):
 
 @admin.register(Medidor)
 class MedidorAdmin(admin.ModelAdmin):
-    list_display = ["usina", "fabricante", "modelo", "provedor_api"]
+    list_display = ["nome", "uc", "tipo", "ponto_medicao", "provedor_api", "ultimo_contato"]
     exclude = ["credenciais"]
 
 

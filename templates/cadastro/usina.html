@@ -1,72 +1,94 @@
 {% extends "base.html" %}
 {% block title %}{{ object.nome }} · FaturaCerta{% endblock %}
+{% block migalhas %}<a href="{% url 'cadastro:clientes' %}">Clientes</a><span>/</span><a href="{% url 'cadastro:cliente' object.uc_geradora.cliente_id %}">{{ object.uc_geradora.cliente }}</a><span>/</span><span>{{ object.nome }}</span>{% endblock %}
 {% block content %}
-<div class="cabecalho">
-  <div><h1>{{ object.nome }}</h1><p><a href="{% url 'cadastro:cliente' object.uc_geradora.cliente_id %}">{{ object.uc_geradora.cliente }}</a> · geradora {{ object.uc_geradora }}</p></div>
-  <div class="acoes"><a class="botao" href="{% url 'cadastro:usina_editar' object.pk %}">Editar usina</a></div>
+<div class="cab">
+  <div>
+    <h1>{{ object.nome }}</h1>
+    <p>{{ object.get_tipo_display }} · geradora {{ object.uc_geradora }}{% if object.municipio %} · {{ object.municipio }}/{{ object.uf }}{% endif %}</p>
+    <div class="chips">
+      <span class="s-{{ resumo.situacao }} chip"><span class="situacao"><span class="luz" aria-hidden="true"></span>{{ resumo.rotulo }}</span></span>
+      {% if object.potencia_kwp %}<span class="chip lime">{{ object.potencia_kwp|floatformat:2 }} kWp</span>{% endif %}
+      {% if object.enquadramento %}<span class="chip cobalto">{{ object.enquadramento }}</span>{% endif %}
+      {% for m in resumo.marcas %}<span class="chip">{{ m }}</span>{% endfor %}
+      {% if resumo.demo %}<span class="selo demo">dados de demonstração</span>{% endif %}
+    </div>
+  </div>
+  <div class="acoes">
+    <a class="botao" href="{% url 'cadastro:usina_editar' object.pk %}">Editar usina</a>
+    <a class="botao principal" href="{% url 'cadastro:inversor_novo' object.pk %}"><svg aria-hidden="true"><use href="#i-mais"/></svg>Inversor</a>
+  </div>
 </div>
 
-{% load graficos %}
-<section class="agora s-{{ resumo.situacao }}" aria-label="Situação agora">
-  <div><span class="situacao"><span class="luz" aria-hidden="true"></span>{{ resumo.rotulo }}</span>{% if resumo.demo %} <span class="selo demo">dados de demonstração</span>{% endif %}</div>
-  <div><span class="placar-num">{{ resumo.potencia_kw|floatformat:1 }}<small> kW</small></span><span class="unid">agora</span></div>
-  <div><span class="placar-num">{{ resumo.hoje_kwh|floatformat:1 }}<small> kWh</small></span><span class="unid">hoje{% if resumo.esperado_hoje_kwh %}, esperado {{ resumo.esperado_hoje_kwh|floatformat:0 }}{% endif %}</span></div>
-  {% if resumo.desempenho_7d is not None %}<div><span class="placar-num">{% widthratio resumo.desempenho_7d 1 100 %}<small>%</small></span><span class="unid">do esperado em 7 dias</span></div>{% endif %}
-</section>
-{% if resumo.ultimos_dias %}
-<h2>Geração nos últimos 30 dias</h2>
-<figure class="figura">{% barras_geracao resumo.ultimos_dias 900 180 %}
-  <figcaption class="secundario">Barras: kWh por dia. Linha: geração esperada. Barras em laranja ficaram abaixo de 80% do esperado.</figcaption></figure>
-{% endif %}
-
 {% if object.enquadramento_divergente_da_data %}
-<p class="aviso">O enquadramento {{ object.enquadramento }} foi fixado manualmente, mas a data do protocolo indica {{ object.enquadramento_pela_data }}. Confira o parecer de acesso.</p>
+<p class="aviso">O enquadramento {{ object.enquadramento }} foi fixado à mão, mas a data do protocolo indica {{ object.enquadramento_pela_data }}. Confira o parecer de acesso.</p>
 {% endif %}
 
-<dl class="ficha">
-  <div><dt>Enquadramento</dt><dd>{{ object.enquadramento|default:"—" }}{% if object.enquadramento_manual %} (manual){% endif %}</dd></div>
-  <div><dt>Protocolo do pedido de acesso</dt><dd>{{ object.data_protocolo|date:"d/m/Y"|default:"—" }}</dd></div>
-  <div><dt>Tipo</dt><dd>{{ object.get_tipo_display }}</dd></div>
-  <div><dt>Potência instalada</dt><dd>{% if object.potencia_kwp %}{{ object.potencia_kwp }} kWp{% else %}—{% endif %}</dd></div>
-  <div><dt>Potência do inversor</dt><dd>{% if object.potencia_inversor_kw %}{{ object.potencia_inversor_kw }} kW{% else %}—{% endif %}</dd></div>
-  <div><dt>Módulos</dt><dd>{{ object.numero_modulos|default:"—" }}</dd></div>
-  <div><dt>Conexão</dt><dd>{{ object.data_conexao|date:"d/m/Y"|default:"—" }}</dd></div>
-</dl>
+<div class="kpis">
+  <div class="kpi energia"><span class="kpi-rotulo">Potência agora</span><span class="kpi-valor">{{ resumo.potencia_kw|floatformat:1 }}<small>kW</small></span>
+    <span class="kpi-rodape">{% if object.potencia_inversor_kw %}de {{ object.potencia_inversor_kw|floatformat:1 }} kW de inversor{% endif %}</span></div>
+  <div class="kpi"><span class="kpi-rotulo">Hoje</span><span class="kpi-valor">{{ resumo.hoje_kwh|floatformat:1 }}<small>kWh</small></span>
+    <span class="kpi-rodape">{% if resumo.esperado_hoje_kwh %}esperado {{ resumo.esperado_hoje_kwh|floatformat:0 }} kWh no dia{% endif %}</span>
+    {% if resumo.pct_hoje is not None %}<div class="barra-prog lime" aria-hidden="true"><span style="width:{% if resumo.pct_hoje > 100 %}100{% else %}{{ resumo.pct_hoje }}{% endif %}%"></span></div>{% endif %}</div>
+  <div class="kpi {% if resumo.pct_7d is not None and resumo.pct_7d < 80 %}alerta{% endif %}"><span class="kpi-rotulo">Desempenho 7 dias</span><span class="kpi-valor">{{ resumo.pct_7d|default:"—" }}<small>%</small></span><span class="kpi-rodape">da geração esperada</span></div>
+  <div class="kpi"><span class="kpi-rotulo">Últimos 12 meses</span><span class="kpi-valor">{{ total_12m|floatformat:0 }}<small>kWh</small></span><span class="kpi-rodape">{% if esperado_12m %}esperado {{ esperado_12m|floatformat:0 }} kWh{% endif %}</span></div>
+</div>
 
-<h2>Rateio dos créditos</h2>
-{% if rateios %}
-<table class="itens">
-  <thead><tr><th>UC beneficiária</th><th class="num">Percentual</th></tr></thead>
-  <tbody>{% for r in rateios %}<tr><td><a href="{% url 'cadastro:uc' r.uc_id %}">{{ r.uc }}</a></td><td class="num">{{ r.percentual }}%</td></tr>{% endfor %}</tbody>
-</table>
-{% else %}<p class="secundario">Sem rateio: todos os créditos ficam na UC geradora.</p>{% endif %}
+<div class="grade g-2" style="margin-top:1rem">
+  {% if g_curva %}{% include "componentes/grafico.html" with id="g-curva" dados=g_curva titulo="Curva de potência de hoje" sub="A cada 15 minutos." %}{% else %}<section class="painel"><h2>Curva de potência de hoje</h2><p class="secundario" style="margin-top:.5rem">Sem leituras hoje. Se a usina deveria estar gerando, confira a comunicação do inversor.</p></section>{% endif %}
+  {% include "componentes/grafico.html" with id="g-diario" dados=g_diario titulo="Geração diária, 30 dias" sub="Linha tracejada: esperado do projeto." %}
+</div>
+{% include "componentes/grafico.html" with id="g-mensal" dados=g_mensal titulo="Geração mensal, 12 meses" sub="Gerado pelo inversor × esperado do projeto." %}
 
-<h2>Geração esperada</h2>
-{% if object.geracao_esperada_kwh|length == 12 %}
-<div class="rolagem"><table class="itens"><thead><tr>{% for m, v in esperada %}<th class="num">{{ m }}</th>{% endfor %}</tr></thead>
-<tbody><tr>{% for m, v in esperada %}<td class="num">{{ v|floatformat:0 }}</td>{% endfor %}</tr></tbody></table></div>
-{% else %}<p class="aviso">Sem geração esperada. A regra de geração abaixo do esperado fica desligada.</p>{% endif %}
+<div class="grade g-2" style="margin-top:1rem">
+  <section class="painel">
+    <div class="painel-cab"><h2>Ficha técnica</h2></div>
+    <dl class="ficha uma">
+      <div><dt>Protocolo do pedido de acesso</dt><dd>{{ object.data_protocolo|date:"d/m/Y"|default:"—" }}{% if object.numero_protocolo %} · nº {{ object.numero_protocolo }}{% endif %}</dd></div>
+      <div><dt>Parecer de acesso</dt><dd>{{ object.data_parecer_acesso|date:"d/m/Y"|default:"—" }}</dd></div>
+      <div><dt>Conexão (troca do medidor)</dt><dd>{{ object.data_conexao|date:"d/m/Y"|default:"—" }}</dd></div>
+      <div><dt>Enquadramento</dt><dd>{{ object.get_enquadramento_display|default:"—" }}{% if object.enquadramento_manual %} (manual){% endif %}</dd></div>
+      <div><dt>Módulos</dt><dd>{{ object.numero_modulos|default:"—" }}</dd></div>
+      <div><dt>Relação CC/CA</dt><dd>{{ object.relacao_dc_ac|default:"—" }}</dd></div>
+      <div><dt>Instalação</dt><dd>{{ object.get_tipo_instalacao_display|default:"—" }}{% if object.inclinacao_graus %} · {{ object.inclinacao_graus }}°{% endif %}{% if object.azimute_graus is not None %} · azimute {{ object.azimute_graus }}°{% endif %}</dd></div>
+      <div><dt>Performance ratio esperado</dt><dd>{{ object.performance_ratio }}</dd></div>
+      <div><dt>Investimento</dt><dd>{% if object.valor_investido %}R$ {{ object.valor_investido|floatformat:2 }}{% else %}—{% endif %}</dd></div>
+    </dl>
+  </section>
+  <section class="painel">
+    <div class="painel-cab"><div><h2>Inversores</h2><p>Fonte 1 da auditoria.</p></div><a class="botao pequeno" href="{% url 'cadastro:inversor_novo' object.pk %}">Vincular</a></div>
+    {% for i in inversores %}
+    <dl class="ficha uma" style="margin-bottom:1rem">
+      <div><dt><a href="{% url 'cadastro:inversor_editar' object.pk i.pk %}">{{ i }}</a></dt><dd>{{ i.get_tipo_display }}{% if i.potencia_nominal_kw %} · {{ i.potencia_nominal_kw }} kW{% endif %}{% if i.fases %} · {{ i.get_fases_display|lower }}{% endif %}</dd></div>
+      <div><dt>Número de série</dt><dd>{{ i.numero_serie|default:"—" }}{% if i.numero_mppt %} · {{ i.numero_mppt }} MPPT{% endif %}</dd></div>
+      <div><dt>API</dt><dd>{% if i.credenciais_configuradas %}<span class="selo confere">{{ i.get_provedor_api_display }} conectado</span>{% else %}<span class="selo demo">{{ i.get_provedor_api_display }}: sem credencial, dados de demonstração</span>{% endif %}</dd></div>
+      {% if i.status_atual.erro %}<div><dt>Último erro</dt><dd class="delta-ruim">{{ i.status_atual.erro }}</dd></div>{% endif %}
+    </dl>
+    {% empty %}<p class="secundario">Nenhum inversor vinculado.</p>{% endfor %}
+  </section>
+</div>
 
-<h2>Inversores</h2>
-{% for i in inversores %}
-<dl class="ficha">
-  <div><dt>Equipamento</dt><dd>{{ i.marca }} {{ i.modelo }}</dd></div>
-  <div><dt>Número de série</dt><dd>{{ i.numero_serie|default:"—" }}</dd></div>
-  <div><dt>Provedor da API</dt><dd>{{ i.get_provedor_api_display }}{% if i.provedor_api == "fake" %} <span class="selo demo">dados de demonstração</span>{% endif %}</dd></div>
-  <div><dt>Credenciais</dt><dd>{% if i.credenciais %}guardadas (criptografadas){% else %}não informadas{% endif %} · <a href="{% url 'cadastro:inversor_editar' object.pk i.pk %}">editar</a></dd></div>
-</dl>
-{% empty %}<p class="secundario">Nenhum inversor vinculado.</p>{% endfor %}
-<p><a class="botao" href="{% url 'cadastro:inversor_novo' object.pk %}">Vincular inversor</a></p>
-
-<h2>Medidor próprio</h2>
-{% if medidor %}
-<dl class="ficha">
-  <div><dt>Equipamento</dt><dd>{{ medidor.fabricante }} {{ medidor.modelo }}</dd></div>
-  <div><dt>Provedor</dt><dd>{{ medidor.get_provedor_api_display }}{% if medidor.provedor_api == "fake" %} <span class="selo demo">dados de demonstração</span>{% endif %}</dd></div>
-</dl>
-<p><a class="botao" href="{% url 'cadastro:medidor_editar' object.pk medidor.pk %}">Editar medidor</a></p>
-{% else %}
-<p class="secundario">Sem medidor próprio. A regra de constante do medidor fica desligada.</p>
-<p><a class="botao" href="{% url 'cadastro:medidor_novo' object.pk %}">Vincular medidor</a></p>
-{% endif %}
+<div class="grade g-2" style="margin-top:1rem">
+  <section class="painel">
+    <div class="painel-cab"><div><h2>Arranjos de módulos</h2><p>A potência da usina é a soma dos arranjos.</p></div></div>
+    {% if arranjos %}
+    <div class="tabela-caixa"><table class="itens"><thead><tr><th>Módulo</th><th class="num">Qtd.</th><th class="num">kWp</th><th>Orientação</th><th></th></tr></thead><tbody>
+      {% for a in arranjos %}<tr><td>{{ a.fabricante }} {{ a.modelo }}<span class="sub">{{ a.potencia_wp }} Wp{% if a.garantia_anos %} · garantia {{ a.garantia_anos }} anos{% endif %}</span></td><td class="num">{{ a.quantidade }}</td><td class="num">{{ a.potencia_kwp }}</td>
+        <td>{% if a.inclinacao_graus %}{{ a.inclinacao_graus }}°{% endif %}{% if a.azimute_graus is not None %} · {{ a.azimute_graus }}° az.{% endif %}</td>
+        <td><form method="post" action="{% url 'cadastro:arranjo_excluir' object.pk a.pk %}" class="inline">{% csrf_token %}<button class="botao pequeno perigo" type="submit">Remover</button></form></td></tr>{% endfor %}
+    </tbody></table></div>
+    {% endif %}
+    <details {% if not arranjos %}open{% endif %} style="margin-top:.75rem"><summary class="botao pequeno" style="display:inline-flex">Adicionar arranjo</summary>
+      <form method="post" action="{% url 'cadastro:arranjo_novo' object.pk %}" style="margin-top:.75rem">{% csrf_token %}
+        <div class="campos">{% for field in form_arranjo %}{% include "cadastro/_campo.html" %}{% endfor %}</div>
+        <button class="botao azul" type="submit">Salvar arranjo</button></form></details>
+  </section>
+  <section class="painel">
+    <div class="painel-cab"><div><h2>Para onde vão os créditos</h2><p>Rateio entre as UCs beneficiárias.</p></div></div>
+    {% if rateios %}
+    <div class="tabela-caixa"><table class="itens"><tbody>{% for r in rateios %}<tr><td><a href="{% url 'cadastro:uc' r.uc_id %}">{{ r.uc }}</a></td><td class="num">{{ r.percentual|floatformat:0 }}%</td></tr>{% endfor %}</tbody></table></div>
+    {% else %}<p class="secundario">Todos os créditos ficam na UC geradora ({{ object.uc_geradora }}).</p>{% endif %}
+    {% if esperada %}{% endif %}
+  </section>
+</div>
 {% endblock %}

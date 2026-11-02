@@ -20,6 +20,7 @@ from .base import (
     LeituraMedidorDia,
     Mensagem,
     Notificador,
+    PontoCurva,
     ProvedorInversor,
     ProvedorMedidor,
     StatusInversor,
@@ -32,6 +33,12 @@ HSP_NATAL = [5.9, 5.9, 5.7, 5.2, 4.9, 4.6, 4.8, 5.5, 6.0, 6.2, 6.3, 6.1]
 PERFORMANCE_RATIO = 0.78
 NASCER, POR = 5.5, 17.5  # horas locais aproximadas
 
+# Fração do consumo que acontece enquanto há sol (simultaneidade), por segmento.
+SIMULTANEIDADE = {
+    "residencial": (0.18, 0.32), "comercial": (0.45, 0.65), "industrial": (0.5, 0.7),
+    "rural": (0.35, 0.55), "publico": (0.5, 0.7), "condominio": (0.2, 0.35),
+}
+
 
 def _rng(*partes) -> random.Random:
     return random.Random("|".join(str(p) for p in partes))
@@ -39,6 +46,21 @@ def _rng(*partes) -> random.Random:
 
 def _q(v: float) -> Decimal:
     return Decimal(str(round(v, 2)))
+
+
+def clima(dia: datetime.date) -> float:
+    """Nebulosidade do dia: igual para todas as usinas da região."""
+    return _rng("clima-natal", dia.isoformat()).uniform(0.74, 1.22)  # média ~0,98 do esperado
+
+
+def fracao_solar(h: float) -> tuple[float, float]:
+    """(fração da energia diária já gerada até a hora h, potência relativa 0..1)."""
+    if h <= NASCER:
+        return 0.0, 0.0
+    if h >= POR:
+        return 1.0, 0.0
+    x = (h - NASCER) / (POR - NASCER)
+    return (1 - math.cos(math.pi * x)) / 2, math.sin(math.pi * x)
 
 
 class FakeInversor(ProvedorInversor):
@@ -54,10 +76,8 @@ class FakeInversor(ProvedorInversor):
     def _cenario(self):
         return self.credenciais.get("cenario", "normal")
 
-    def _kwp(self) -> float:
-        usina = self.inversor.usina
-        n = max(usina.inversores.count(), 1)
-        return float(usina.potencia_kwp or 5) / n
+    def _n_inversores(self):
+        return max(len(self.inversor.usina.inversores.all()), 1)
 
     def _parada_em(self, dia: datetime.date) -> bool:
         if self._cenario != "parada":
@@ -65,55 +85,97 @@ class FakeInversor(ProvedorInversor):
         desde = self.credenciais.get("desde")
         return desde is None or dia >= datetime.date.fromisoformat(desde)
 
-    def _clima(self, dia: datetime.date) -> float:
-        # nebulosidade do dia: igual para todas as usinas da região
-        return _rng("clima-natal", dia.isoformat()).uniform(0.62, 1.08)
-
-    def _kwh_do_dia(self, dia: datetime.date) -> float:
+    def kwh_do_dia(self, dia: datetime.date) -> float:
+        """Energia do dia inteiro (sem cortar no horário atual)."""
         if self._parada_em(dia):
             return 0.0
-        esperada = self.inversor.usina.geracao_esperada_mes(dia.month)
+        usina = self.inversor.usina
+        esperada = usina.geracao_esperada_mes(dia.month)
         if esperada is not None:
-            n_inv = max(self.inversor.usina.inversores.count(), 1)
-            base = float(esperada) / 30.4 / n_inv
+            base = float(esperada) / 30.4 / self._n_inversores()
         else:
-            base = self._kwp() * HSP_NATAL[dia.month - 1] * PERFORMANCE_RATIO
+            kwp = float(usina.potencia_kwp or 5) / self._n_inversores()
+            base = kwp * HSP_NATAL[dia.month - 1] * PERFORMANCE_RATIO
         ruido = _rng(self._semente, dia.isoformat()).uniform(0.95, 1.03)
         fator = float(self.credenciais.get("fator", 0.6)) if self._cenario == "baixa" else 1.0
-        return base * self._clima(dia) * ruido * fator
+        return base * clima(dia) * ruido * fator
 
-    def _fracao_do_dia(self, agora: datetime.datetime) -> tuple[float, float]:
-        """(fração da energia diária já gerada, fator de potência instantânea 0..1)."""
-        h = agora.hour + agora.minute / 60
-        if h <= NASCER:
-            return 0.0, 0.0
-        if h >= POR:
-            return 1.0, 0.0
-        x = (h - NASCER) / (POR - NASCER)
-        return (1 - math.cos(math.pi * x)) / 2, math.sin(math.pi * x)
+    def _pico(self, kwh_dia):
+        return kwh_dia / ((POR - NASCER) * 2 / math.pi) if kwh_dia else 0
+
+    def potencia_em(self, momento: datetime.datetime) -> float:
+        kwh = self.kwh_do_dia(momento.date())
+        h = momento.hour + momento.minute / 60
+        nuvem = _rng(self._semente, momento.strftime("%Y%m%d%H"), "nuvem").uniform(0.78, 1.0)
+        return self._pico(kwh) * fracao_solar(h)[1] * nuvem
 
     def status(self) -> StatusInversor:
         agora = timezone.localtime()
         if self._cenario == "offline":
             return StatusInversor(False, Decimal(0), Decimal(0), agora - datetime.timedelta(hours=30), demo=True)
-        kwh_dia = self._kwh_do_dia(agora.date())
-        fracao, sino = self._fracao_do_dia(agora)
-        # potência de pico ~ energia diária / (horas de sol * 2/pi)
-        pico = kwh_dia / ((POR - NASCER) * 2 / math.pi) if kwh_dia else 0
+        kwh_dia = self.kwh_do_dia(agora.date())
+        fracao = fracao_solar(agora.hour + agora.minute / 60)[0]
         online = not self._parada_em(agora.date())
-        return StatusInversor(online, _q(pico * sino), _q(kwh_dia * fracao), agora, demo=True)
+        return StatusInversor(online, _q(self.potencia_em(agora)), _q(kwh_dia * fracao), agora, demo=True)
 
     def geracao_diaria(self, inicio, fim):
+        if self._cenario == "offline":
+            fim = min(fim, timezone.localdate() - datetime.timedelta(days=2))
         hoje = timezone.localdate()
         out, dia = [], inicio
         while dia <= min(fim, hoje):
-            kwh = self._kwh_do_dia(dia)
+            kwh = self.kwh_do_dia(dia)
             if dia == hoje:
-                kwh *= self._fracao_do_dia(timezone.localtime())[0]
-            if self._cenario != "offline":
-                out.append(GeracaoDia(dia, _q(kwh)))
+                agora = timezone.localtime()
+                kwh *= fracao_solar(agora.hour + agora.minute / 60)[0]
+            out.append(GeracaoDia(dia, _q(kwh)))
             dia += datetime.timedelta(days=1)
         return out
+
+    def curva_do_dia(self, dia):
+        if self._cenario == "offline":
+            return []
+        tz = timezone.get_current_timezone()
+        agora = timezone.localtime()
+        out = []
+        for minuto in range(int(NASCER * 60), int(POR * 60) + 1, 15):
+            m = datetime.datetime.combine(dia, datetime.time(minuto // 60, minuto % 60), tzinfo=tz)
+            if m > agora:
+                break
+            out.append(PontoCurva(m, _q(self.potencia_em(m))))
+        return out
+
+
+def energia_fake_da_uc(uc, dia: datetime.date) -> dict:
+    """Balanço fictício de um dia numa UC: geração local, carga, simultâneo, importação e exportação.
+
+    Usado pelo medidor fictício e pelas faturas de demonstração, para as três fontes contarem a mesma história.
+    """
+    geracao = 0.0
+    for usina in uc.usinas.all():
+        if usina.tipo != "junto_carga":
+            continue
+        for inv in usina.inversores.all():
+            geracao += FakeInversor(inv).kwh_do_dia(dia)
+    r = _rng("carga", uc.numero_uc, dia.isoformat())
+    if uc.consumo_medio_kwh:
+        base = float(uc.consumo_medio_kwh) / 30.4
+    else:
+        base = 25.0
+    fim_de_semana = dia.weekday() >= 5
+    segmento = uc.cliente.segmento
+    if fim_de_semana and segmento in ("comercial", "industrial", "publico"):
+        base *= 0.55 if dia.weekday() == 5 else 0.3
+    carga = base * r.uniform(0.85, 1.15)
+    lo, hi = SIMULTANEIDADE.get(segmento, (0.3, 0.5))
+    simultaneo = min(carga * r.uniform(lo, hi), geracao)
+    return {
+        "geracao": geracao,
+        "carga": carga,
+        "simultaneo": simultaneo,
+        "importacao": max(carga - simultaneo, 0.0),
+        "exportacao": max(geracao - simultaneo, 0.0),
+    }
 
 
 class FakeMedidor(ProvedorMedidor):
@@ -121,20 +183,19 @@ class FakeMedidor(ProvedorMedidor):
     demo = True
 
     def leituras_diarias(self, inicio, fim):
-        usina = self.medidor.usina
-        fator_constante = float(self.credenciais.get("fator_constante", 1.0))
-        consumo_base = float(self.credenciais.get("consumo_diario_kwh", 25))
+        uc = self.medidor.uc
+        ponto = self.medidor.ponto_medicao
         out, dia = [], inicio
         while dia <= fim:
-            r = _rng(self.medidor.numero_serie or self.medidor.pk, dia.isoformat())
-            gerado = sum(
-                float(FakeInversor(inv)._kwh_do_dia(dia)) for inv in usina.inversores.all()
-            )
-            consumo = consumo_base * r.uniform(0.8, 1.2)
-            simultaneo = min(consumo * r.uniform(0.25, 0.45), gerado)
-            injecao = max(gerado - simultaneo, 0)
-            da_rede = max(consumo - simultaneo, 0)
-            out.append(LeituraMedidorDia(dia, _q(da_rede * fator_constante), _q(injecao * fator_constante)))
+            e = energia_fake_da_uc(uc, dia)
+            rede = ponto in ("rede", "rede_carga")
+            carga = ponto in ("carga", "rede_carga")
+            out.append(LeituraMedidorDia(
+                dia,
+                _q(e["importacao"]) if rede else None,
+                _q(e["exportacao"]) if rede else None,
+                _q(e["carga"]) if carga else None,
+            ))
             dia += datetime.timedelta(days=1)
         return out
 

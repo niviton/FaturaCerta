@@ -1,0 +1,16 @@
+{% if faturas %}
+<section class="painel"><div class="tabela-caixa"><table class="itens">
+  <thead><tr><th>Mês</th><th>UC</th><th>Leitura</th><th class="num">Consumo</th><th class="num">Injetado</th><th class="num">Compensado</th><th class="num">Total</th><th>Situação</th><th></th></tr></thead>
+  <tbody>{% for f in faturas %}
+  <tr><td class="forte">{{ f.mes_referencia|date:"m/Y" }}</td>
+      <td><a href="{% url 'cadastro:uc' f.uc_id %}?aba=analise&fatura={{ f.pk }}">{{ f.uc }}</a><span class="sub">{{ f.uc.cliente }}</span></td>
+      <td>{{ f.data_leitura_anterior|date:"d/m" }} a {{ f.data_leitura_atual|date:"d/m" }}<span class="sub">{{ f.dias }} dias</span></td>
+      <td class="num">{{ f.consumo_kwh|floatformat:0 }} kWh</td><td class="num">{{ f.energia_injetada_kwh|floatformat:0 }} kWh</td>
+      <td class="num">{{ f.energia_compensada_kwh|floatformat:0 }} kWh</td><td class="num forte">R$ {{ f.valor_total|floatformat:2 }}</td>
+      <td>{% if f.status == "divergente" %}<span class="selo diverge">divergência</span>{% elif f.status == "conferida" %}<span class="selo confere">confere</span>{% elif f.status == "revisao" %}<span class="selo atencao">em revisão</span>{% else %}<span class="selo neutro">recebida</span>{% endif %}{% if f.origem == "demo" %} <span class="selo demo">demo</span>{% endif %}</td>
+      <td><a class="botao pequeno" href="{% url 'faturas:editar' f.pk %}">Editar</a></td></tr>
+  {% endfor %}</tbody>
+</table></div></section>
+{% else %}
+<div class="vazio"><p>Nenhuma fatura ainda.</p><a class="botao principal" href="{% url 'faturas:nova' %}{% if object.pk and object.numero_uc %}?uc={{ object.pk }}{% endif %}">Lançar fatura</a></div>
+{% endif %}

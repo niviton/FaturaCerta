@@ -1,32 +1,45 @@
 {% extends "base.html" %}
 {% block title %}Clientes · FaturaCerta{% endblock %}
+{% block migalhas %}<span>Clientes</span>{% endblock %}
 {% block content %}
-<div class="cabecalho">
-  <div><h1>Clientes</h1><p>{{ paginator.count }} cliente{{ paginator.count|pluralize }} cadastrado{{ paginator.count|pluralize }}</p></div>
-  <div class="acoes"><a class="botao principal" href="{% url 'cadastro:cliente_novo' %}">Novo cliente</a></div>
+<div class="cab">
+  <div><h1>Clientes</h1><p>{{ paginator.count }} cliente{{ paginator.count|pluralize }}. Cada cliente reúne as contas de energia, as usinas e os equipamentos.</p></div>
+  <div class="acoes"><a class="botao principal" href="{% url 'cadastro:cliente_novo' %}"><svg aria-hidden="true"><use href="#i-mais"/></svg>Novo cliente</a></div>
 </div>
-<form class="busca" role="search" method="get">
-  <label class="pular" for="q">Buscar cliente</label>
+
+<form class="filtros" method="get" role="search">
+  <label class="sr" for="q">Buscar</label>
   <input type="search" id="q" name="q" value="{{ request.GET.q }}" placeholder="Nome, CPF/CNPJ ou número da UC">
+  <label class="sr" for="segmento">Segmento</label>
+  <select id="segmento" name="segmento" style="max-width:220px" onchange="this.form.submit()">
+    <option value="">Todos os segmentos</option>
+    {% for v, n in segmentos %}<option value="{{ v }}" {% if request.GET.segmento == v %}selected{% endif %}>{{ n }}</option>{% endfor %}
+  </select>
   <button class="botao" type="submit">Buscar</button>
 </form>
+
 {% if object_list %}
-<div class="rolagem">
+<section class="painel">
+<div class="tabela-caixa">
 <table class="itens">
-  <thead><tr><th>Cliente</th><th>CPF/CNPJ</th><th class="num">UCs</th><th>LGPD</th></tr></thead>
+  <thead><tr><th>Cliente</th><th>Segmento</th><th>Perfil</th><th>Usinas</th><th class="num">kWp</th><th>Situação agora</th><th>LGPD</th></tr></thead>
   <tbody>
   {% for c in object_list %}
   <tr>
-    <td><a href="{% url 'cadastro:cliente' c.pk %}">{{ c.nome }}</a>{% if not c.ativo %} <span class="selo neutro">inativo</span>{% endif %}</td>
-    <td>{{ c.documento }}</td>
-    <td class="num">{{ c.n_ucs }}</td>
-    <td>{% if c.consentimento_vigente %}<span class="selo confere">consentimento registrado</span>{% else %}<span class="selo diverge">sem consentimento</span>{% endif %}</td>
+    <td><a class="linha-link" href="{% url 'cadastro:cliente' c.pk %}">{{ c }}</a><span class="sub">{{ c.documento_formatado }}{% if c.municipio %} · {{ c.municipio }}/{{ c.uf }}{% endif %}</span></td>
+    <td>{{ c.get_segmento_display }}</td>
+    <td>{% for uc in c.ucs.all %}<span class="chip">{{ uc.subgrupo|default:uc.grupo }}</span> {% empty %}<span class="secundario">sem UC</span>{% endfor %}</td>
+    <td>{{ c.n_usinas }}{% if c.marcas %}<span class="sub">{{ c.marcas|join:", " }}</span>{% endif %}</td>
+    <td class="num">{{ c.kwp|default_if_none:"—"|floatformat:1 }}</td>
+    <td>{% for r in c.resumos|slice:":1" %}<span class="s-{{ r.situacao }}"><span class="situacao"><span class="luz" aria-hidden="true"></span>{{ r.rotulo }}</span></span>{% if c.resumos|length > 1 %}<span class="sub">{{ c.resumos|length }} usinas</span>{% endif %}{% empty %}<span class="secundario">—</span>{% endfor %}</td>
+    <td>{% with cs=c.consentimentos.all %}{% if cs %}<span class="selo confere">registrado</span>{% else %}<span class="selo diverge">pendente</span>{% endif %}{% endwith %}</td>
   </tr>
   {% endfor %}
   </tbody>
 </table>
 </div>
+</section>
 {% else %}
-<p>Nenhum cliente encontrado. <a href="{% url 'cadastro:cliente_novo' %}">Cadastre o primeiro cliente</a> para começar a conferir as faturas.</p>
+<div class="vazio"><p>Nenhum cliente encontrado.</p><a class="botao principal" href="{% url 'cadastro:cliente_novo' %}">Cadastrar o primeiro cliente</a></div>
 {% endif %}
 {% endblock %}

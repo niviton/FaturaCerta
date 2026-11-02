@@ -27,6 +27,10 @@ INSTALLED_APPS = [
     "apps.cadastro",
     "apps.integracoes",
     "apps.monitoramento",
+    "apps.faturas",
+    "apps.analise",
+    "apps.plataforma",
+    "apps.portal",
 ]
 
 MIDDLEWARE = [
@@ -87,6 +91,7 @@ MEDIA_URL = "media/"
 MEDIA_ROOT = Path(os.environ.get("MEDIA_ROOT", BASE_DIR / "media"))
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+FORMS_URLFIELD_ASSUME_HTTPS = True
 
 SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = False  # HTMX lê o token pelo meta tag, não pelo cookie
@@ -110,6 +115,8 @@ CELERY_BEAT_SCHEDULE = {
     "status-inversores": {"task": "apps.monitoramento.tasks.coletar_status_todos", "schedule": 15 * 60},
     "geracao-diaria": {"task": "apps.monitoramento.tasks.coletar_geracao_todos", "schedule": 6 * 3600,
                        "kwargs": {"dias": 3}},
+    "curvas-do-dia": {"task": "apps.monitoramento.tasks.coletar_curvas_hoje", "schedule": 30 * 60},
+    "consolidar-esp": {"task": "apps.monitoramento.tasks.consolidar_medicoes_esp", "schedule": 15 * 60},
 }
 
 # Monitoramento (padrões; por integradora na fase de alertas)

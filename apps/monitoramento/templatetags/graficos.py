@@ -37,5 +37,5 @@ def barras_geracao(dias, largura=560, altura=140, compacto=False):
     linha = mark_safe(f'<polyline class="esperado" points="{" ".join(esperado_pts)}"/>') if esperado_pts else ""
     resumo = f"Geração diária dos últimos {len(dias)} dias"
     return format_html(
-        '<svg class="grafico{}" viewBox="0 0 {} {}" preserveAspectRatio="none" role="img" aria-label="{}">{}{}{}</svg>',
+        '<svg class="mini{}" viewBox="0 0 {} {}" preserveAspectRatio="none" role="img" aria-label="{}">{}{}{}</svg>',
         " compacto" if compacto else "", largura, altura, resumo, rects, linha, textos)

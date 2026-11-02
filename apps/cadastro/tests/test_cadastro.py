@@ -1,10 +1,11 @@
 import datetime
+from decimal import Decimal
 
 import pytest
 from django.db import connection
 from django.urls import reverse
 
-from apps.cadastro.models import Inversor, LoteCredito, Rateio, UnidadeConsumidora, Usina
+from apps.cadastro.models import Inversor, LoteCredito, Medidor, Rateio, UnidadeConsumidora, Usina
 from apps.cadastro.requisitos import pendencias_cadastro_uc, status_regras
 from apps.core.models import LogAuditoria
 from apps.core.validators import cnpj_valido, cpf_valido
@@ -87,7 +88,7 @@ def test_cria_usina_com_rateio_que_soma_100(client, gestor_a, uc_a, cosern):
                                             concessionaria=cosern, numero_uc="999")
     client.force_login(gestor_a)
     base = {"nome": "Usina Rateada", "uc_geradora": uc_a.pk, "tipo": "autoconsumo_remoto", "ativa": "on",
-            "data_protocolo": "2024-05-10",
+            "data_protocolo": "2024-05-10", "performance_ratio": "0.78",
             "rateios-TOTAL_FORMS": "2", "rateios-INITIAL_FORMS": "0",
             "rateios-0-uc": uc_a.pk, "rateios-0-percentual": "60",
             "rateios-1-uc": uc2.pk, "rateios-1-percentual": "30"}
@@ -117,17 +118,48 @@ def test_visualizacao_e_edicao_geram_log(client, gestor_a, cliente_a):
     client.force_login(gestor_a)
     client.get(reverse("cadastro:cliente", args=[cliente_a.pk]))
     client.post(reverse("cadastro:cliente_editar", args=[cliente_a.pk]),
-                {"nome": "Padaria Nova", "documento": cliente_a.documento, "ativo": "on"})
+                {"nome": "Padaria Nova", "documento": cliente_a.documento, "ativo": "on", "tipo_pessoa": "pf",
+                 "segmento": "comercial"})
     acoes = list(LogAuditoria.objects.filter(usuario=gestor_a).values_list("acao", flat=True))
     assert "ver" in acoes and "alterar" in acoes
 
 
 def test_paginas_do_cadastro_renderizam(client, gestor_a, uc_a):
+    u = Usina.objects.create(integradora=uc_a.integradora, nome="U", uc_geradora=uc_a, potencia_kwp=5)
+    inv = Inversor.objects.create(usina=u, marca="Growatt", numero_serie="X1")
+    client.force_login(gestor_a)
+    urls = [reverse("cadastro:clientes"), reverse("cadastro:cliente_novo"),
+            reverse("cadastro:uc", args=[uc_a.pk]), reverse("cadastro:uc_nova"), reverse("cadastro:usina", args=[u.pk]),
+            reverse("cadastro:usina_nova") + f"?cliente={uc_a.cliente_id}", reverse("cadastro:usina_editar", args=[u.pk]),
+            reverse("cadastro:inversor_novo", args=[u.pk]), reverse("cadastro:inversor_editar", args=[u.pk, inv.pk]),
+            reverse("cadastro:medidor_novo", args=[uc_a.pk]), reverse("cadastro:integradora"),
+            reverse("faturas:lista"), reverse("faturas:nova") + f"?uc={uc_a.pk}", reverse("painel:visao"),
+            reverse("monitoramento:painel"), reverse("equipe:usuarios"), reverse("equipe:novo")]
+    urls += [reverse("cadastro:cliente", args=[uc_a.cliente_id]) + f"?aba={a}"
+             for a in ("resumo", "ucs", "usinas", "equipamentos", "faturas", "acesso")]
+    urls += [reverse("cadastro:uc", args=[uc_a.pk]) + f"?aba={a}" for a in ("analise", "faturas", "perfil", "creditos")]
+    for url in urls:
+        assert client.get(url).status_code == 200, url
+
+
+def test_arranjo_recalcula_potencia(client, gestor_a, uc_a):
     u = Usina.objects.create(integradora=uc_a.integradora, nome="U", uc_geradora=uc_a)
     client.force_login(gestor_a)
-    for url in [reverse("cadastro:clientes"), reverse("cadastro:cliente_novo"),
-                reverse("cadastro:cliente", args=[uc_a.cliente_id]), reverse("cadastro:uc", args=[uc_a.pk]),
-                reverse("cadastro:uc_nova"), reverse("cadastro:usina", args=[u.pk]),
-                reverse("cadastro:usina_nova"), reverse("cadastro:usina_editar", args=[u.pk]),
-                reverse("cadastro:inversor_novo", args=[u.pk]), reverse("cadastro:medidor_novo", args=[u.pk])]:
-        assert client.get(url).status_code == 200, url
+    client.post(reverse("cadastro:arranjo_novo", args=[u.pk]),
+                {"fabricante": "Jinko", "potencia_wp": 550, "quantidade": 20})
+    u.refresh_from_db()
+    assert u.potencia_kwp == Decimal("11.00") and u.numero_modulos == 20
+
+
+def test_medidor_esp_gera_token_unico(client, gestor_a, uc_a):
+    client.force_login(gestor_a)
+    resp = client.post(reverse("cadastro:medidor_novo", args=[uc_a.pk]), {
+        "nome": "ESP", "tipo": "esp32", "ponto_medicao": "rede", "fases": 1, "intervalo_envio_s": 60,
+        "provedor_api": "esp"})
+    assert resp.status_code == 302 and "/token/" in resp["Location"]
+    pagina = client.get(resp["Location"]).content.decode()
+    m = Medidor.objects.get(uc=uc_a)
+    assert m.token_hash and "fc_" in pagina
+    token = pagina.split('class="codigo token">')[1].split("<")[0].strip()
+    assert Medidor.pelo_token(token) == m
+    assert token not in client.get(resp["Location"]).content.decode()  # não mostra de novo

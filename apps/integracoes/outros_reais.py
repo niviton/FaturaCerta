@@ -25,7 +25,8 @@ class MedidorHTTP(ProvedorMedidor):
 
     Credenciais: {"url_base": "https://...", "token": "..."}. Espera
     GET {url_base}/medidores/{id_externo}/diario?inicio=AAAA-MM-DD&fim=AAAA-MM-DD
-    devolvendo [{"data": "...", "consumo_kwh": n, "injecao_kwh": n}]. Ajuste o mapeamento por fabricante.
+    devolvendo {"itens": [{"data": "...", "importacao_kwh": n, "exportacao_kwh": n, "carga_kwh": n}]}.
+    Ajuste o mapeamento por fabricante.
     """
 
     codigo = "http"
@@ -39,8 +40,37 @@ class MedidorHTTP(ProvedorMedidor):
         r = http_json("GET", f"{self.credenciais['url_base'].rstrip('/')}/medidores/{self.medidor.id_externo}/diario",
                       params={"inicio": inicio.isoformat(), "fim": fim.isoformat()},
                       headers={"Authorization": f"Bearer {self.credenciais.get('token', '')}"})
-        return [LeituraMedidorDia(datetime.date.fromisoformat(i["data"]), d(i["consumo_kwh"]), d(i["injecao_kwh"]))
+        def opc(v):
+            return None if v is None else d(v)
+
+        return [LeituraMedidorDia(datetime.date.fromisoformat(i["data"]), opc(i.get("importacao_kwh")),
+                                  opc(i.get("exportacao_kwh")), opc(i.get("carga_kwh")))
                 for i in r.get("itens", [])]
+
+
+def _leituras_gravadas(medidor, inicio, fim):
+    from apps.monitoramento.models import LeituraMedidor
+
+    qs = LeituraMedidor.objects.filter(medidor=medidor, data__range=(inicio, fim)).order_by("data")
+    return [LeituraMedidorDia(x.data, x.importacao_kwh, x.exportacao_kwh, x.carga_kwh) for x in qs]
+
+
+class MedidorESP(ProvedorMedidor):
+    """ESP32 (ou outro dispositivo) que envia medições para POST /api/medidores/medicoes.
+
+    Não buscamos nada: o dispositivo empurra os contadores, e a tarefa `consolidar_medicoes`
+    transforma as medições brutas em leituras diárias. Aqui só devolvemos o que foi consolidado.
+    """
+
+    codigo = "esp"
+
+    def __init__(self, medidor):
+        super().__init__(medidor)
+        if not medidor.token_hash:
+            raise IntegracaoNaoConfigurada("ESP: gere o token do dispositivo")
+
+    def leituras_diarias(self, inicio, fim):
+        return _leituras_gravadas(self.medidor, inicio, fim)
 
 
 class MedidorMQTT(ProvedorMedidor):
@@ -59,10 +89,7 @@ class MedidorMQTT(ProvedorMedidor):
             raise IntegracaoNaoConfigurada("Medidor MQTT: falta host")
 
     def leituras_diarias(self, inicio, fim):
-        from apps.monitoramento.models import LeituraMedidor
-
-        qs = LeituraMedidor.objects.filter(medidor=self.medidor, data__range=(inicio, fim)).order_by("data")
-        return [LeituraMedidorDia(x.data, x.consumo_kwh, x.injecao_kwh) for x in qs]
+        return _leituras_gravadas(self.medidor, inicio, fim)
 
 
 class EmailDjango(Notificador):

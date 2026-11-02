@@ -40,8 +40,15 @@ class GeracaoDia:
 @dataclass(frozen=True)
 class LeituraMedidorDia:
     data: datetime.date
-    consumo_kwh: Decimal
-    injecao_kwh: Decimal
+    importacao_kwh: Decimal | None  # consumido da rede
+    exportacao_kwh: Decimal | None  # injetado na rede
+    carga_kwh: Decimal | None = None  # consumo total da instalação (se houver sensor na carga)
+
+
+@dataclass(frozen=True)
+class PontoCurva:
+    momento: datetime.datetime
+    kw: Decimal
 
 
 @dataclass(frozen=True)
@@ -69,6 +76,10 @@ class ProvedorInversor(ABC):
     @abstractmethod
     def geracao_diaria(self, inicio: datetime.date, fim: datetime.date) -> list[GeracaoDia]:
         """Energia gerada por dia, de `inicio` a `fim` (inclusive)."""
+
+    def curva_do_dia(self, dia: datetime.date) -> list[PontoCurva]:
+        """Potência ao longo do dia. Opcional: quem não implementa, a curva se forma pelas coletas de status."""
+        return []
 
 
 class ProvedorMedidor(ABC):

@@ -26,7 +26,6 @@ def _usinas_da_uc(uc):
         .filter(models_q_uc(uc))
         .distinct()
         .prefetch_related("inversores")
-        .select_related("medidor")
     )
 
 
@@ -48,7 +47,7 @@ def status_regras(uc) -> list[StatusRegra]:
     usinas = _usinas_da_uc(uc)
     geradoras = [u for u in usinas if u.uc_geradora_id == uc.id]
     tem_inversor = any(u.inversores.all() for u in geradoras)
-    tem_medidor = any(hasattr(u, "medidor") for u in geradoras)
+    tem_medidor = uc.medidores.exists()
     grupo_a = uc.grupo == "A"
     out = []
 
@@ -59,7 +58,8 @@ def status_regras(uc) -> list[StatusRegra]:
     add("injecao_nao_compensada", "Injeção não compensada", falta_vinculo)
     add("injecao_vs_geracao", "Injeção × geração do inversor",
         ([] if geradoras else ["ser UC geradora de uma usina"]) + ([] if tem_inversor else ["inversor cadastrado"]))
-    add("constante_medidor", "Constante do medidor", [] if tem_medidor else ["medidor próprio"])
+    add("constante_medidor", "Constante do medidor (fatura × medidor próprio)",
+        [] if tem_medidor else ["medidor próprio (ESP)"])
 
     falta_prot = [] if any(u.data_protocolo for u in usinas) else ["data do protocolo do pedido de acesso"]
     add("enquadramento_gd", "Enquadramento GD1 × GD2", falta_vinculo + falta_prot)
@@ -71,6 +71,7 @@ def status_regras(uc) -> list[StatusRegra]:
     add("custo_disponibilidade", "Custo de disponibilidade",
         [] if uc.tipo_ligacao else ["tipo de ligação"], nao_se_aplica=grupo_a)
     add("cip", "CIP do município", [] if uc.municipio else ["município"])
+    add("leitura", "Leitura × constante = consumo", [] if uc.constante_medidor else ["constante do medidor"])
     add("demanda", "Ultrapassagem de demanda",
         [] if uc.demanda_contratada_kw else ["demanda contratada"], nao_se_aplica=not grupo_a)
     add("reativo", "Cobrança de reativo", [], nao_se_aplica=not grupo_a)

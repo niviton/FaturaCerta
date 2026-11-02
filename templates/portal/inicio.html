@@ -1,0 +1,49 @@
+{% extends "portal/base_portal.html" %}
+{% block title %}Minha energia · {{ tenant }}{% endblock %}
+{% block content %}
+<section class="heroi">
+  <p class="ola">Olá, {{ cliente }}. Hoje suas usinas geraram</p>
+  <p class="grande">{{ hoje_kwh|floatformat:1 }}<small> kWh</small></p>
+  <p class="secundario">{% if tudo_ok %}<span class="selo confere ok-bg">tudo funcionando</span>{% else %}<span class="selo diverge">sua integradora já foi avisada de um problema</span>{% endif %}
+    &nbsp;{{ potencia|floatformat:1 }} kW agora · {{ mes_kwh|floatformat:0 }} kWh no mês</p>
+</section>
+
+{% if g_curva %}{% include "componentes/grafico.html" with id="g-curva" dados=g_curva titulo="Sua geração hoje" sub="Potência a cada 15 minutos." altura="baixo" %}{% endif %}
+
+<div class="grade g-2" style="margin-top:1rem">
+  {% for r in resumos %}
+  <a class="painel s-{{ r.situacao }}" href="{% url 'portal:usina' r.usina.pk %}" style="text-decoration:none;color:inherit">
+    <div class="painel-cab"><div><h2>{{ r.usina.nome }}</h2><p>{{ r.usina.potencia_kwp|floatformat:1 }} kWp · {{ r.marcas|join:" + " }}</p></div><span class="situacao"><span class="luz" aria-hidden="true"></span>{{ r.rotulo }}</span></div>
+    <span class="kpi-valor">{{ r.hoje_kwh|floatformat:1 }}<small>kWh hoje</small></span>
+    {% if r.pct_hoje is not None %}<div class="barra-prog lime" aria-hidden="true"><span style="width:{% if r.pct_hoje > 100 %}100{% else %}{{ r.pct_hoje }}{% endif %}%"></span></div>
+    <p class="secundario pequeno" style="margin-top:.375rem">{{ r.pct_hoje }}% do esperado para o dia</p>{% endif %}
+  </a>
+  {% endfor %}
+</div>
+
+{% if ultimo %}
+<div class="grade g-2" style="margin-top:1rem">
+<section class="painel">
+  <div class="painel-cab"><div><h2>Sua conta de {{ ultimo.rotulo }}</h2><p>{{ uc }} · leitura de {{ ultimo.inicio|date:"d/m" }} a {{ ultimo.fim|date:"d/m" }}</p></div>
+    {% if not ultimo.tem_alta %}<span class="selo-conferida"><svg width="16" height="16" aria-hidden="true"><use href="#i-escudo"/></svg>Conta conferida</span>{% else %}<span class="selo atencao">em análise</span>{% endif %}</div>
+  <div class="recibo">
+    {% if ultimo.custo_sem_solar_estimado %}<div class="linha-r"><span>Sem energia solar você pagaria</span><span>R$ {{ ultimo.custo_sem_solar_estimado|floatformat:2 }}</span></div>{% endif %}
+    <div class="linha-r"><span>Com energia solar você pagou</span><span>R$ {{ ultimo.fat_total|floatformat:2 }}</span></div>
+    {% if ultimo.geracao_kwh is not None %}<div class="linha-r"><span>Suas usinas geraram no período</span><span>{{ ultimo.geracao_kwh|floatformat:0 }} kWh</span></div>{% endif %}
+    {% if ultimo.pct_atendido_solar %}<div class="linha-r"><span>Do seu consumo, o sol atendeu</span><span>{{ ultimo.pct_atendido_solar }}%</span></div>{% endif %}
+    {% if ultimo.economia_estimada is not None %}<div class="linha-r total"><span>Economia no mês</span><span class="economia">R$ {{ ultimo.economia_estimada|floatformat:2 }}</span></div>{% endif %}
+  </div>
+  <p class="secundario pequeno" style="margin-top:.75rem">Valores "sem solar" e "economia" são estimativas pela tarifa média da concessionária.</p>
+</section>
+<section class="painel energia">
+  <div class="painel-cab"><div><h2>Economia nos últimos 12 meses</h2><p>Estimativa somando cada conta.</p></div></div>
+  <p class="kpi-valor" style="color:var(--lime);font-size:2.5rem">R$ {{ economia_12m|floatformat:0 }}</p>
+</section>
+</div>
+{% endif %}
+
+<div class="grade g-2" style="margin-top:1rem">
+  {% if g_mensal %}{% include "componentes/grafico.html" with id="g-mensal" dados=g_mensal titulo="Geração mês a mês" sub="Gerado × esperado do projeto." %}{% endif %}
+  {% if g_custo %}{% include "componentes/grafico.html" with id="g-custo" dados=g_custo titulo="Quanto você pagou × pagaria sem solar" sub="Por conta de energia." %}{% endif %}
+</div>
+{% endblock %}

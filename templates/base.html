@@ -1,51 +1,59 @@
-{% load static %}<!doctype html>
-<html lang="pt-BR">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="htmx-config" content='{"includeIndicatorStyles": false}'>
-  <title>{% block title %}FaturaCerta{% endblock %}</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'css/app.css' %}">
-  {% if tenant and tenant.cor_marca %}<style>:root { --marca: {{ tenant.cor_marca }}; }</style>{% endif %}
-  <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js" defer></script>
-</head>
-<body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
-  <a class="pular" href="#conteudo">Pular para o conteúdo</a>
-  {% block faixa %}
-  <header class="faixa">
-    <div class="faixa-interna">
-      <a class="marca" href="{% url 'home' %}">
-        {% if tenant and tenant.logo %}<img src="{{ tenant.logo.url }}" alt="">{% endif %}
-        {% if tenant %}{{ tenant }}{% else %}FaturaCerta{% endif %}
-      </a>
-      {% if user.is_authenticated and user.is_equipe %}
-      {% with p=request.path %}
-      <nav aria-label="Principal">
-        <a href="{% url 'monitoramento:painel' %}" {% if p == '/usinas/' %}aria-current="page"{% endif %}>Usinas agora</a>
-        <a href="{% url 'cadastro:clientes' %}" {% if '/cadastro/' in p and '/integradora/' not in p %}aria-current="page"{% endif %}>Clientes</a>
-        {% if user.is_gestor %}<a href="{% url 'cadastro:integradora' %}" {% if '/integradora/' in p %}aria-current="page"{% endif %}>Configurações</a>{% endif %}
-      </nav>
-      {% endwith %}
-      {% endif %}
-      {% if user.is_authenticated %}
-      <div class="usuario">
-        <span>{{ user.get_full_name|default:user.username }}</span>
-        <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit">Sair</button></form>
-      </div>
-      {% endif %}
+{% extends "base_documento.html" %}
+{% block corpo %}
+<div class="app" id="app">
+  <aside class="lateral" aria-label="Menu">
+    <a class="logo" href="{% url 'home' %}">
+      <span class="logo-marca"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z" fill="#C8FF2E"/></svg></span>
+      <span><strong>FaturaCerta</strong><small>{% if user.is_admin_geral %}administração geral{% elif tenant %}{{ tenant }}{% endif %}</small></span>
+    </a>
+
+    {% if atuando %}
+    <div class="atuando">
+      <p>Você está vendo como</p>
+      <strong>{{ tenant }}</strong>
+      <form method="post" action="{% url 'plataforma:sair_atuacao' %}" style="margin-top:.5rem">{% csrf_token %}
+        <button class="botao pequeno" type="submit">Voltar para a plataforma</button></form>
     </div>
-  </header>
-  {% endblock %}
-  <main id="conteudo">
-    {% if messages %}
-    <ul class="mensagens">
-      {% for m in messages %}<li class="aviso {% if m.tags == 'success' %}ok{% endif %}" role="status">{{ m }}</li>{% endfor %}
-    </ul>
     {% endif %}
-    {% block content %}{% endblock %}
-  </main>
-</body>
-</html>
+
+    <nav class="menu" aria-label="Principal">
+      {% for grupo in menus %}
+      <div class="menu-grupo">
+        {% if grupo.titulo %}<div class="menu-titulo">{{ grupo.titulo }}</div>{% endif %}
+        {% for i in grupo.itens %}
+        <a href="{{ i.url }}" {% if i.ativo %}aria-current="page"{% endif %}><svg aria-hidden="true"><use href="#i-{{ i.icone }}"/></svg>{{ i.titulo }}</a>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </nav>
+
+    <div class="lateral-rodape">
+      <div class="quem">
+        <span class="avatar" aria-hidden="true">{{ user.nome_exibicao|slice:":1"|upper }}</span>
+        <div><strong>{{ user.nome_exibicao }}</strong><span>{{ user.get_papel_display }}</span></div>
+      </div>
+      <form method="post" action="{% url 'logout' %}">{% csrf_token %}
+        <button class="botao fantasma pequeno" type="submit"><svg aria-hidden="true"><use href="#i-sair"/></svg>Sair</button>
+      </form>
+    </div>
+  </aside>
+
+  <div class="principal">
+    <header class="topo">
+      <button class="botao fantasma abrir-menu" type="button" aria-controls="app" aria-expanded="false"
+              onclick="var a=document.getElementById('app');var o=a.classList.toggle('menu-aberto');this.setAttribute('aria-expanded',o)">
+        <svg aria-hidden="true"><use href="#i-menu"/></svg><span class="sr">Abrir menu</span></button>
+      <div class="migalhas">{% block migalhas %}{% endblock %}</div>
+      <div class="direita">{% block topo_acoes %}{% endblock %}</div>
+    </header>
+    <main class="conteudo" id="conteudo">
+      {% if messages %}
+      <ul class="mensagens">
+        {% for m in messages %}<li class="aviso {% if m.tags == 'success' %}ok{% elif m.tags == 'info' %}info{% endif %}" role="status">{{ m }}</li>{% endfor %}
+      </ul>
+      {% endif %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+{% endblock %}

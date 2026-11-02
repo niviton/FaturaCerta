@@ -4,22 +4,38 @@ from django.db import models
 
 from .validators import validar_cnpj
 
-cor_hex = RegexValidator(r"^#[0-9A-Fa-f]{6}$", "Use uma cor hexadecimal, ex.: #E8A900")
+cor_hex = RegexValidator(r"^#[0-9A-Fa-f]{6}$", "Use uma cor hexadecimal, ex.: #1F4FFF")
 
 
 class Integradora(models.Model):
     """Tenant: a empresa integradora que assina o sistema."""
 
+    class Plano(models.TextChoices):
+        ESSENCIAL = "essencial", "Essencial (monitoramento)"
+        AUDITORIA = "auditoria", "Auditoria (monitoramento + faturas)"
+        COMPLETO = "completo", "Completo (auditoria + recomendações)"
+
     razao_social = models.CharField(max_length=200)
     nome_fantasia = models.CharField(max_length=120, blank=True)
     cnpj = models.CharField(max_length=18, unique=True, validators=[validar_cnpj])
+    inscricao_estadual = models.CharField(max_length=30, blank=True)
     responsavel_tecnico_nome = models.CharField("responsável técnico", max_length=120, blank=True)
-    responsavel_tecnico_crea = models.CharField("CREA", max_length=30, blank=True)
-    logo = models.ImageField(upload_to="logos/", blank=True)
-    cor_marca = models.CharField(max_length=7, default="#1F4FFF", validators=[cor_hex])
+    responsavel_tecnico_crea = models.CharField("CREA do responsável", max_length=30, blank=True)
     email_contato = models.EmailField(blank=True)
     telefone_contato = models.CharField(max_length=20, blank=True)
+    whatsapp = models.CharField(max_length=20, blank=True)
+    site = models.URLField(blank=True)
+    logradouro = models.CharField(max_length=200, blank=True)
+    municipio = models.CharField("município", max_length=80, blank=True)
+    uf = models.CharField(max_length=2, blank=True)
+    logo = models.ImageField(upload_to="logos/", blank=True)
+    cor_marca = models.CharField("cor da marca", max_length=7, default="#1F4FFF", validators=[cor_hex])
+    plano = models.CharField(max_length=12, choices=Plano.choices, default=Plano.AUDITORIA)
+    valor_por_usina = models.DecimalField("assinatura por usina (R$/mês)", max_digits=8, decimal_places=2,
+                                          null=True, blank=True)
+    taxa_exito_pct = models.DecimalField("taxa de êxito (%)", max_digits=5, decimal_places=2, null=True, blank=True)
     ativa = models.BooleanField(default=True)
+    observacoes = models.TextField("observações internas", blank=True)
     criada_em = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -58,6 +74,7 @@ class LogAuditoria(models.Model):
         ALTERAR = "alterar", "Alterou"
         EXCLUIR = "excluir", "Excluiu"
         EXPORTAR = "exportar", "Exportou"
+        ATUAR = "atuar", "Atuou como integradora"
 
     momento = models.DateTimeField(auto_now_add=True, db_index=True)
     usuario = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL)

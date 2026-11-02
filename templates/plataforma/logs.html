@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Logs de auditoria · FaturaCerta{% endblock %}
+{% block migalhas %}<a href="{% url 'plataforma:visao' %}">Plataforma</a><span>/</span><span>Logs</span>{% endblock %}
+{% block content %}
+<div class="cab"><div><h1>Logs de auditoria</h1><p>Quem viu, alterou ou exportou dados (LGPD).</p></div></div>
+<form class="filtros" method="get">
+  <label class="sr" for="acao">Ação</label>
+  <select id="acao" name="acao" style="max-width:240px" onchange="this.form.submit()"><option value="">Todas as ações</option>
+    {% for v, n in acoes %}<option value="{{ v }}" {% if request.GET.acao == v %}selected{% endif %}>{{ n }}</option>{% endfor %}</select>
+</form>
+<section class="painel"><div class="tabela-caixa"><table class="itens">
+  <thead><tr><th>Quando</th><th>Quem</th><th>Integradora</th><th>Ação</th><th>Objeto</th><th>IP</th></tr></thead>
+  <tbody>{% for l in object_list %}
+  <tr><td>{{ l.momento|date:"d/m/Y H:i:s" }}</td><td>{{ l.usuario.nome_exibicao|default:"—" }}</td><td>{{ l.integradora|default:"—" }}</td>
+      <td>{{ l.get_acao_display }}</td><td>{{ l.objeto_tipo }} #{{ l.objeto_id }}{% if l.descricao %}<span class="sub">{{ l.descricao }}</span>{% endif %}</td><td>{{ l.ip|default:"—" }}</td></tr>
+  {% empty %}<tr><td colspan="6" class="secundario">Nenhum registro.</td></tr>{% endfor %}</tbody>
+</table></div></section>
+{% if page_obj.has_next %}<p style="margin-top:1rem"><a class="botao" href="?page={{ page_obj.next_page_number }}{% if request.GET.acao %}&acao={{ request.GET.acao }}{% endif %}">Mais antigos</a></p>{% endif %}
+{% endblock %}

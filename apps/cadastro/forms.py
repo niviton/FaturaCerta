@@ -4,17 +4,28 @@ from decimal import Decimal
 from django import forms
 from django.forms import BaseInlineFormSet, inlineformset_factory
 
+from apps.core.forms import DATA, SecoesMixin
 from apps.core.models import Integradora
+from apps.core.validators import so_digitos
 
-from .models import Cliente, Inversor, LoteCredito, Medidor, Rateio, UnidadeConsumidora, Usina
+from .models import (
+    ArranjoModulos,
+    Cliente,
+    Inversor,
+    LoteCredito,
+    Medidor,
+    Rateio,
+    UnidadeConsumidora,
+    Usina,
+)
 
 MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
 
 
-class TenantModelForm(forms.ModelForm):
+class TenantModelForm(SecoesMixin, forms.ModelForm):
     """Recebe a integradora e restringe as escolhas de FK aos dados dela."""
 
-    tenant_fields: dict[str, str] = {}
+    tenant_fields: tuple[str, ...] = ()
 
     def __init__(self, *args, integradora=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -24,25 +35,57 @@ class TenantModelForm(forms.ModelForm):
                 self.fields[nome].queryset = self.fields[nome].queryset.filter(integradora=integradora)
 
 
-class IntegradoraForm(forms.ModelForm):
+class IntegradoraForm(SecoesMixin, forms.ModelForm):
+    secoes = [
+        ("Empresa", "", ["razao_social", "nome_fantasia", "cnpj", "inscricao_estadual"]),
+        ("Responsável técnico", "Aparece no laudo de contestação.", ["responsavel_tecnico_nome",
+                                                                     "responsavel_tecnico_crea"]),
+        ("Contato e endereço", "", ["email_contato", "telefone_contato", "whatsapp", "site", "logradouro",
+                                    "municipio", "uf"]),
+        ("Marca no portal do cliente", "Logo e cor usados no portal que o seu cliente acessa.", ["logo", "cor_marca"]),
+    ]
+
     class Meta:
         model = Integradora
-        fields = ["razao_social", "nome_fantasia", "cnpj", "responsavel_tecnico_nome", "responsavel_tecnico_crea",
-                  "logo", "cor_marca", "email_contato", "telefone_contato"]
+        fields = ["razao_social", "nome_fantasia", "cnpj", "inscricao_estadual", "responsavel_tecnico_nome",
+                  "responsavel_tecnico_crea", "email_contato", "telefone_contato", "whatsapp", "site", "logradouro",
+                  "municipio", "uf", "logo", "cor_marca"]
         widgets = {"cor_marca": forms.TextInput(attrs={"type": "color"})}
 
     def __init__(self, *args, integradora=None, **kwargs):
         super().__init__(*args, **kwargs)
 
 
+class IntegradoraAdminForm(IntegradoraForm):
+    """Versão do administrador geral: inclui plano, cobrança e situação."""
+
+    secoes = IntegradoraForm.secoes + [
+        ("Contrato", "Visível só para o administrador geral.", ["plano", "valor_por_usina", "taxa_exito_pct",
+                                                                "ativa", "observacoes"]),
+    ]
+
+    class Meta(IntegradoraForm.Meta):
+        fields = IntegradoraForm.Meta.fields + ["plano", "valor_por_usina", "taxa_exito_pct", "ativa", "observacoes"]
+
+
 class ClienteForm(TenantModelForm):
+    secoes = [
+        ("Titular", "Quem é o titular das contas de energia.", ["tipo_pessoa", "nome", "nome_fantasia", "documento",
+                                                                "segmento", "atividade"]),
+        ("Contato", "", ["contato_nome", "email", "telefone", "whatsapp"]),
+        ("Endereço", "", ["cep", "logradouro", "numero", "complemento", "bairro", "municipio", "uf"]),
+        ("Perfil de uso", "Ajuda a interpretar o consumo e o autoconsumo na auditoria.",
+         ["horario_funcionamento", "data_inicio_contrato", "observacoes", "ativo"]),
+    ]
+
     class Meta:
         model = Cliente
-        fields = ["nome", "documento", "contato_nome", "email", "telefone", "whatsapp", "ativo"]
+        fields = ["tipo_pessoa", "nome", "nome_fantasia", "documento", "segmento", "atividade", "contato_nome", "email",
+                  "telefone", "whatsapp", "cep", "logradouro", "numero", "complemento", "bairro", "municipio", "uf",
+                  "horario_funcionamento", "data_inicio_contrato", "observacoes", "ativo"]
+        widgets = {"data_inicio_contrato": DATA, "observacoes": forms.Textarea(attrs={"rows": 3})}
 
     def clean_documento(self):
-        from apps.core.validators import so_digitos
-
         doc = so_digitos(self.cleaned_data["documento"])
         qs = Cliente.objects.filter(integradora=self.integradora, documento=doc).exclude(pk=self.instance.pk)
         if qs.exists():
@@ -58,14 +101,29 @@ class ConsentimentoForm(forms.Form):
 
 
 class UCForm(TenantModelForm):
-    tenant_fields = {"cliente": "integradora"}
+    tenant_fields = ("cliente",)
+    secoes = [
+        ("Identificação", "Os números como aparecem na fatura. É por eles que a fatura chega no cliente certo.",
+         ["cliente", "concessionaria", "numero_uc", "codigo_cliente", "apelido", "email_fatura"]),
+        ("Perfil tarifário", "Define quais regras valem: grupo A ou B, custo de disponibilidade, demanda.",
+         ["grupo", "subgrupo", "classe", "tipo_ligacao", "tensao_fornecimento_v", "modalidade_tarifaria",
+          "tarifa_social", "demanda_contratada_kw", "demanda_contratada_ponta_kw"]),
+        ("Medidor da concessionária", "Para conferir leitura × constante = consumo.",
+         ["numero_medidor_concessionaria", "constante_medidor", "medidor_bidirecional", "data_ligacao"]),
+        ("Linha de base", "Consumo antes da usina. Base para medir a economia.", ["consumo_medio_kwh"]),
+        ("Endereço da UC", "O município define a CIP.", ["cep", "logradouro", "numero", "complemento", "bairro",
+                                                          "municipio", "uf", "latitude", "longitude"]),
+    ]
 
     class Meta:
         model = UnidadeConsumidora
-        fields = ["cliente", "concessionaria", "numero_uc", "codigo_cliente", "apelido",
-                  "logradouro", "numero", "bairro", "municipio", "uf", "cep",
-                  "grupo", "subgrupo", "tipo_ligacao", "modalidade_tarifaria",
-                  "demanda_contratada_kw", "demanda_contratada_ponta_kw", "email_fatura", "ativa"]
+        fields = ["cliente", "concessionaria", "numero_uc", "codigo_cliente", "apelido", "email_fatura", "grupo",
+                  "subgrupo", "classe", "tipo_ligacao", "tensao_fornecimento_v", "modalidade_tarifaria",
+                  "tarifa_social", "demanda_contratada_kw", "demanda_contratada_ponta_kw",
+                  "numero_medidor_concessionaria", "constante_medidor", "medidor_bidirecional", "data_ligacao",
+                  "consumo_medio_kwh", "cep", "logradouro", "numero", "complemento", "bairro", "municipio", "uf",
+                  "latitude", "longitude", "ativa"]
+        widgets = {"data_ligacao": DATA}
 
     def clean(self):
         data = super().clean()
@@ -74,22 +132,34 @@ class UCForm(TenantModelForm):
 
 
 class UsinaForm(TenantModelForm):
-    tenant_fields = {"uc_geradora": "integradora"}
+    tenant_fields = ("uc_geradora",)
+    secoes = [
+        ("Identificação", "", ["nome", "uc_geradora", "tipo"]),
+        ("Acesso e enquadramento", "A data do protocolo define GD1 ou GD2 (Lei 14.300). É a base do cálculo do Fio B.",
+         ["data_protocolo", "numero_protocolo", "data_parecer_acesso", "data_conexao", "enquadramento",
+          "enquadramento_manual"]),
+        ("Dados técnicos", "Se você cadastrar os arranjos de módulos, a potência é calculada sozinha.",
+         ["potencia_kwp", "potencia_inversor_kw", "numero_modulos", "tipo_instalacao", "inclinacao_graus",
+          "azimute_graus", "performance_ratio"]),
+        ("Local e investimento", "", ["cep", "logradouro", "numero", "bairro", "municipio", "uf", "latitude",
+                                      "longitude", "valor_investido", "observacoes", "ativa"]),
+    ]
 
     class Meta:
         model = Usina
-        fields = ["nome", "uc_geradora", "tipo", "data_protocolo", "enquadramento", "enquadramento_manual",
-                  "potencia_kwp", "potencia_inversor_kw", "data_conexao", "numero_modulos", "ativa"]
-        widgets = {
-            "data_protocolo": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
-            "data_conexao": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
-        }
+        fields = ["nome", "uc_geradora", "tipo", "data_protocolo", "numero_protocolo", "data_parecer_acesso",
+                  "data_conexao", "enquadramento", "enquadramento_manual", "potencia_kwp", "potencia_inversor_kw",
+                  "numero_modulos", "tipo_instalacao", "inclinacao_graus", "azimute_graus", "performance_ratio",
+                  "cep", "logradouro", "numero", "bairro", "municipio", "uf", "latitude", "longitude",
+                  "valor_investido", "observacoes", "ativa"]
+        widgets = {"data_protocolo": DATA, "data_parecer_acesso": DATA, "data_conexao": DATA,
+                   "observacoes": forms.Textarea(attrs={"rows": 3})}
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, cliente=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["enquadramento"].help_text = (
-            "Preenchido pela data do protocolo (GD1 até 07/01/2023). Marque 'manual' para fixar outro valor."
-        )
+        if cliente is not None:
+            self.fields["uc_geradora"].queryset = self.fields["uc_geradora"].queryset.filter(cliente=cliente)
+        self.fields["uc_geradora"].label_from_instance = lambda uc: f"{uc} · {uc.cliente}"
         atuais = self.instance.geracao_esperada_kwh or []
         for i, mes in enumerate(MESES):
             self.fields[f"esp_{mes}"] = forms.DecimalField(
@@ -99,6 +169,9 @@ class UsinaForm(TenantModelForm):
 
     def campos_esperada(self):
         return [self[f"esp_{m}"] for m in MESES]
+
+    def secoes_renderizadas(self):
+        return [s for s in super().secoes_renderizadas() if not s["campos"][0].name.startswith("esp_")]
 
     def clean(self):
         data = super().clean()
@@ -144,12 +217,19 @@ RateioFormSet = inlineformset_factory(
 )
 
 
-class CredenciaisMixin(forms.ModelForm):
+class ArranjoForm(SecoesMixin, forms.ModelForm):
+    class Meta:
+        model = ArranjoModulos
+        fields = ["fabricante", "modelo", "potencia_wp", "quantidade", "inclinacao_graus", "azimute_graus",
+                  "garantia_anos"]
+
+
+class CredenciaisMixin(SecoesMixin, forms.ModelForm):
     """Credenciais nunca voltam para a tela; campo vazio na edição mantém o valor salvo."""
 
     credenciais_json = forms.CharField(
         label="Credenciais da API (JSON)", required=False, widget=forms.Textarea(attrs={"rows": 3}),
-        help_text='Ex.: {"usuario": "...", "token": "..."}. Guardadas criptografadas. '
+        help_text='Ex.: {"token": "..."}. Guardadas criptografadas e nunca exibidas de novo. '
                   "Deixe vazio para manter as atuais.",
     )
 
@@ -173,15 +253,38 @@ class CredenciaisMixin(forms.ModelForm):
 
 
 class InversorForm(CredenciaisMixin):
+    secoes = [
+        ("Equipamento", "", ["marca", "modelo", "numero_serie", "tipo", "potencia_nominal_kw", "fases", "numero_mppt",
+                             "data_instalacao", "garantia_ate"]),
+        ("Conexão com a API do fabricante", "Fonte 1 da auditoria: quanto a usina gerou. Sem credenciais, o sistema "
+         "mostra dados de demonstração.", ["provedor_api", "id_externo", "credenciais_json"]),
+    ]
+
     class Meta:
         model = Inversor
-        fields = ["marca", "modelo", "numero_serie", "provedor_api", "id_externo"]
+        fields = ["marca", "modelo", "numero_serie", "tipo", "potencia_nominal_kw", "fases", "numero_mppt",
+                  "data_instalacao", "garantia_ate", "provedor_api", "id_externo"]
+        widgets = {"data_instalacao": DATA, "garantia_ate": DATA}
 
 
 class MedidorForm(CredenciaisMixin):
+    secoes = [
+        ("Dispositivo", "Fonte 2 da auditoria: o que entra e sai da rede, medido por nós.",
+         ["nome", "tipo", "ponto_medicao", "fabricante", "modelo", "numero_serie", "fases", "corrente_ct_a",
+          "intervalo_envio_s", "data_instalacao", "usina"]),
+        ("Origem dos dados", "ESP32: o dispositivo envia para a nossa API com um token. "
+         "HTTP/MQTT: buscamos no serviço do fabricante.", ["provedor_api", "id_externo", "credenciais_json"]),
+    ]
+
     class Meta:
         model = Medidor
-        fields = ["fabricante", "modelo", "numero_serie", "provedor_api", "id_externo"]
+        fields = ["nome", "tipo", "ponto_medicao", "fabricante", "modelo", "numero_serie", "fases", "corrente_ct_a",
+                  "intervalo_envio_s", "data_instalacao", "usina", "provedor_api", "id_externo"]
+        widgets = {"data_instalacao": DATA}
+
+    def __init__(self, *args, uc=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["usina"].queryset = Usina.objects.filter(uc_geradora=uc) if uc else Usina.objects.none()
 
 
 class LoteCreditoForm(forms.ModelForm):

@@ -15,7 +15,14 @@
       "Bash(.venv/Scripts/python -m pytest)",
       "Bash(.venv/Scripts/ruff check *)",
       "Bash(.venv/Scripts/python manage.py makemigrations)",
-      "Bash(.venv/Scripts/python manage.py makemigrations monitoramento)"
+      "Bash(.venv/Scripts/python manage.py makemigrations monitoramento)",
+      "Bash(.venv/Scripts/python manage.py runserver 127.0.0.1:8000 --noreload)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://127.0.0.1:8000/entrar/)",
+      "Bash(break)",
+      "Bash(.venv/Scripts/python -)",
+      "Bash(start http://127.0.0.1:8000/)",
+      "Read(//c/Users/ester/AppData/Local/Temp/claude/bundled-skills/2.1.314/80e80f69db4cf990305105313ad0f496/dataviz/**)",
+      "Bash(node scripts/validate_palette.js \"#c8ff2e,#4f74ff,#1fb889,#e8743b,#c084fc,#f2b630\" --mode dark --surface \"#111829\")"
     ]
   }
 }

@@ -40,6 +40,29 @@ def test_usina_e_equipamentos_de_outra_integradora_dao_404(client, gestor_a, usi
                        ).status_code == 404
 
 
+def test_medidor_de_outra_integradora_da_404(client, gestor_a, uc_b):
+    from apps.cadastro.models import Medidor
+
+    m = Medidor.objects.create(uc=uc_b)
+    client.force_login(gestor_a)
+    assert client.get(reverse("cadastro:medidor_novo", args=[uc_b.pk])).status_code == 404
+    assert client.get(reverse("cadastro:medidor_editar", args=[uc_b.pk, m.pk])).status_code == 404
+    assert client.get(reverse("cadastro:medidor_token", args=[uc_b.pk, m.pk])).status_code == 404
+
+
+def test_faturas_isoladas(client, gestor_a, uc_b):
+    import datetime
+
+    from apps.faturas.models import Fatura
+
+    f = Fatura.objects.create(integradora=uc_b.integradora, uc=uc_b, mes_referencia=datetime.date(2026, 1, 1),
+                              data_leitura_anterior=datetime.date(2025, 12, 10),
+                              data_leitura_atual=datetime.date(2026, 1, 10), consumo_kwh=100, valor_total=90)
+    client.force_login(gestor_a)
+    assert "7000000001" not in client.get(reverse("faturas:lista")).content.decode()
+    assert client.get(reverse("faturas:editar", args=[f.pk])).status_code == 404
+
+
 def test_nao_cria_uc_para_cliente_de_outra_integradora(client, gestor_a, cliente_b, cosern):
     client.force_login(gestor_a)
     resp = client.post(reverse("cadastro:uc_nova"), {

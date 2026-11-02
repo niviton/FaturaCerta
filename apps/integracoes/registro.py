@@ -11,11 +11,11 @@ from django.conf import settings
 from .base import IntegracaoNaoConfigurada, Notificador, ProvedorInversor, ProvedorMedidor
 from .fake import FakeInversor, FakeMedidor, FakeNotificador
 from .inversores_reais import PROVEDORES_REAIS
-from .outros_reais import EmailDjango, MedidorHTTP, MedidorMQTT, WhatsAppCloud
+from .outros_reais import EmailDjango, MedidorESP, MedidorHTTP, MedidorMQTT, WhatsAppCloud
 
 log = logging.getLogger(__name__)
 
-MEDIDORES_REAIS = {"http": MedidorHTTP, "mqtt": MedidorMQTT}
+MEDIDORES_REAIS = {"esp": MedidorESP, "http": MedidorHTTP, "mqtt": MedidorMQTT}
 
 
 def provedor_inversor(inversor) -> ProvedorInversor:

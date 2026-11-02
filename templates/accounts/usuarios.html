@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}{{ titulo }} · FaturaCerta{% endblock %}
+{% block migalhas %}<span>{{ titulo }}</span>{% endblock %}
+{% block content %}
+<div class="cab">
+  <div><h1>{{ titulo }}</h1><p>{{ subtitulo }}</p></div>
+  <div class="acoes"><a class="botao principal" href="{{ novo_url }}"><svg aria-hidden="true"><use href="#i-mais"/></svg>Novo usuário</a></div>
+</div>
+{% if filtros_papel %}
+<form class="filtros" method="get">
+  <fieldset class="segmentos"><legend class="sr">Papel</legend>
+    <label class="segmento"><input type="radio" name="papel" value="" {% if not request.GET.papel %}checked{% endif %} onchange="this.form.submit()"> Todos</label>
+    {% for v, n in filtros_papel %}<label class="segmento"><input type="radio" name="papel" value="{{ v }}" {% if request.GET.papel == v %}checked{% endif %} onchange="this.form.submit()"> {{ n }}</label>{% endfor %}
+  </fieldset>
+</form>
+{% endif %}
+<section class="painel"><div class="tabela-caixa"><table class="itens">
+  <thead><tr><th>Pessoa</th><th>Papel</th>{% if mostrar_integradora %}<th>Integradora</th>{% endif %}<th>Cliente</th><th>Último acesso</th><th>Situação</th><th></th></tr></thead>
+  <tbody>{% for u in object_list %}
+  <tr><td><span class="forte">{{ u.nome_exibicao }}</span><span class="sub">{{ u.username }}{% if u.email %} · {{ u.email }}{% endif %}</span></td>
+      <td><span class="chip {% if u.papel == 'admin' %}lime{% elif u.papel == 'gestor' %}cobalto{% endif %}">{{ u.get_papel_display }}</span></td>
+      {% if mostrar_integradora %}<td>{{ u.integradora|default:"—" }}</td>{% endif %}
+      <td>{{ u.cliente|default:"—" }}</td>
+      <td>{{ u.last_login|date:"d/m/Y H:i"|default:"nunca" }}</td>
+      <td>{% if u.is_active %}<span class="selo confere">ativo</span>{% else %}<span class="selo neutro">bloqueado</span>{% endif %}</td>
+      <td><a class="botao pequeno" href="{% url editar_rota u.pk %}">Editar</a></td></tr>
+  {% empty %}<tr><td colspan="7" class="secundario">Nenhum usuário.</td></tr>{% endfor %}</tbody>
+</table></div></section>
+{% endblock %}

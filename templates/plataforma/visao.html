@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}Plataforma · FaturaCerta{% endblock %}
+{% block migalhas %}<span>Plataforma</span><span>/</span><span>Visão geral</span>{% endblock %}
+{% block content %}
+<div class="cab">
+  <div><h1>Plataforma</h1><p>Todas as integradoras, clientes, usinas e integrações. Você pode entrar em qualquer integradora para ver e operar como ela.</p></div>
+  <div class="acoes"><a class="botao" href="{% url 'plataforma:usuario_novo' %}">Novo usuário</a><a class="botao principal" href="{% url 'plataforma:integradora_nova' %}"><svg aria-hidden="true"><use href="#i-mais"/></svg>Nova integradora</a></div>
+</div>
+
+<div class="kpis">
+  <div class="kpi"><span class="kpi-rotulo">Integradoras ativas</span><span class="kpi-valor">{{ n_integradoras }}</span><span class="kpi-rodape">{{ n_clientes }} clientes · {{ n_ucs }} UCs</span></div>
+  <div class="kpi energia"><span class="kpi-rotulo">Usinas monitoradas</span><span class="kpi-valor">{{ n_usinas }}</span><span class="kpi-rodape">{{ kwp|floatformat:1|intcomma }} kWp instalados</span></div>
+  <div class="kpi"><span class="kpi-rotulo">Inversores com API real</span><span class="kpi-valor">{{ conectados }}<small>/ {{ n_inversores }}</small></span><span class="kpi-rodape">os demais mostram dados de demonstração</span></div>
+  <div class="kpi"><span class="kpi-rotulo">Medidores próprios</span><span class="kpi-valor">{{ n_medidores }}</span><span class="kpi-rodape">{{ esp_online }} ESP enviando agora</span></div>
+  <div class="kpi {% if n_faturas_div %}alerta{% endif %}"><span class="kpi-rotulo">Faturas com divergência</span><span class="kpi-valor">{{ n_faturas_div }}</span><span class="kpi-rodape">de {{ n_faturas }} faturas</span></div>
+</div>
+
+<section class="painel" style="margin-top:1rem">
+  <div class="painel-cab"><div><h2>Integradoras</h2><p>Carteira de cada cliente pagante.</p></div><a class="botao pequeno" href="{% url 'plataforma:integradoras' %}">Gerenciar</a></div>
+  <div class="tabela-caixa"><table class="itens">
+    <thead><tr><th>Integradora</th><th>Plano</th><th class="num">Clientes</th><th class="num">Usinas</th><th class="num">kWp</th><th class="num">Faturas divergentes</th><th class="num">Usuários</th><th></th></tr></thead>
+    <tbody>{% for l in linhas %}
+    <tr><td><span class="forte">{{ l.obj }}</span><span class="sub">{{ l.obj.municipio|default:"" }}{% if l.obj.uf %}/{{ l.obj.uf }}{% endif %}{% if not l.obj.ativa %} · inativa{% endif %}</span></td>
+        <td>{{ l.obj.get_plano_display }}</td><td class="num">{{ l.clientes }}</td><td class="num">{{ l.usinas }}</td>
+        <td class="num">{{ l.kwp|floatformat:1 }}</td><td class="num">{% if l.faturas_div %}<span class="delta-ruim">{{ l.faturas_div }}</span>{% else %}0{% endif %}</td>
+        <td class="num">{{ l.usuarios }}</td>
+        <td><form method="post" action="{% url 'plataforma:atuar' l.obj.pk %}" class="inline">{% csrf_token %}<button class="botao pequeno azul" type="submit">Entrar como</button></form></td></tr>
+    {% empty %}<tr><td colspan="8" class="secundario">Nenhuma integradora.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</section>
+
+<div class="grade g-2" style="margin-top:1rem">
+  {% if g_kwp %}{% include "componentes/grafico.html" with id="g-kwp" dados=g_kwp titulo="Potência por integradora" sub="kWp sob monitoramento." altura="baixo" %}{% endif %}
+  {% if g_fab %}{% include "componentes/grafico.html" with id="g-fab" dados=g_fab titulo="Fabricantes de inversor" sub="kWp por marca, todas as integradoras." altura="baixo" %}{% endif %}
+  {% if g_sub %}{% include "componentes/grafico.html" with id="g-sub" dados=g_sub titulo="Perfil tarifário das UCs" sub="Quantidade de UCs por subgrupo (B1, B3, A4...)." altura="baixo" %}{% endif %}
+  {% if g_enq %}{% include "componentes/grafico.html" with id="g-enq" dados=g_enq titulo="Enquadramento das usinas" sub="GD1, GD2 e GD3 pela data do protocolo." altura="baixo" %}{% endif %}
+</div>
+<div class="grade g-21" style="margin-top:1rem">
+  {% if g_conexao %}{% include "componentes/grafico.html" with id="g-con" dados=g_conexao titulo="Fontes conectadas" sub="Equipamentos lendo dados reais × em demonstração." altura="baixo" %}{% endif %}
+  <section class="painel"><div class="painel-cab"><h2>Usuários por perfil</h2><a class="botao pequeno" href="{% url 'plataforma:usuarios' %}">Gerenciar</a></div>
+    <dl class="ficha uma">{% for nome, n in papeis %}<div><dt>{{ nome }}</dt><dd>{{ n }}</dd></div>{% endfor %}</dl></section>
+</div>
+{% endblock %}

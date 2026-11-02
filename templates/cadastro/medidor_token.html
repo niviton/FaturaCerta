@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Token do dispositivo · FaturaCerta{% endblock %}
+{% block migalhas %}<a href="{% url 'cadastro:uc' medidor.uc_id %}">{{ medidor.uc }}</a><span>/</span><span>{{ medidor.nome }}</span>{% endblock %}
+{% block content %}
+<div class="cab"><div><h1>Conectar o {{ medidor.nome }}</h1><p>O ESP32 envia as medições para a nossa API usando este token.</p></div></div>
+
+{% if token %}
+<section class="painel destaque">
+  <div class="painel-cab"><div><h2>Token do dispositivo</h2><p>Copie agora. Por segurança ele não aparece de novo; se perder, gere outro.</p></div></div>
+  <p class="codigo token">{{ token }}</p>
+</section>
+<div class="grade g-2" style="margin-top:1rem">
+<section class="painel">
+  <h2>Como o ESP envia</h2>
+  <p class="secundario" style="margin-top:.5rem">A cada {{ medidor.intervalo_envio_s }} segundos, com os contadores <strong>acumulados</strong> (não zere a cada envio):</p>
+<pre class="codigo">POST {{ url_api }}
+Authorization: Bearer {{ token|slice:":10" }}…
+Content-Type: application/json
+
+{
+  "potencia_w": -1830.5,
+  "importacao_kwh": 15234.120,
+  "exportacao_kwh": 9012.450,
+  "tensao_v": 221.4,
+  "corrente_a": 8.3
+}</pre>
+  <p class="secundario pequeno" style="margin-top:.5rem">potencia_w positiva = importando da rede; negativa = injetando. Sem conexão, guarde e envie depois numa lista com o campo "momento".</p>
+</section>
+<section class="painel">
+  <h2>Firmware de exemplo</h2>
+  <p class="secundario" style="margin-top:.5rem">Há um sketch pronto para ESP32 com sensores SCT-013 em <code>docs/esp32/medidor_faturacerta.ino</code>. Grave o token e a URL nas constantes do topo.</p>
+  <p class="secundario">Os dados enviados viram a leitura diária do medidor (fonte 2) e entram na análise da conta.</p>
+</section>
+</div>
+{% else %}
+<section class="painel">
+  <p>Este medidor já tem token (começa com <strong>{{ medidor.token_prefixo }}…</strong>). Último envio: {{ medidor.ultimo_contato|date:"d/m/Y H:i"|default:"nenhum ainda" }}.</p>
+  <form method="post">{% csrf_token %}<button class="botao perigo" type="submit">Gerar novo token</button>
+    <span class="secundario pequeno">O token atual deixa de funcionar na hora.</span></form>
+</section>
+{% endif %}
+<p style="margin-top:1rem"><a class="botao" href="{% url 'cadastro:uc' medidor.uc_id %}?aba=perfil">Voltar para a UC</a></p>
+{% endblock %}

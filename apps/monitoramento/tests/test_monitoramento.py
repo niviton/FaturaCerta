@@ -68,11 +68,25 @@ def test_solaredge_mapeia_campos(usina_a):
 
 def test_medidor_e_notificador_fake(usina_a):
     _inv(usina_a)
-    med = Medidor.objects.create(usina=usina_a, fabricante="X", numero_serie="M1")
+    med = Medidor.objects.create(uc=usina_a.uc_geradora, usina=usina_a, fabricante="X", numero_serie="M1")
     assert isinstance(provedor_medidor(med), FakeMedidor)
     leituras = FakeMedidor(med).leituras_diarias(datetime.date(2026, 1, 1), datetime.date(2026, 1, 3))
-    assert len(leituras) == 3 and all(x.injecao_kwh >= 0 for x in leituras)
+    assert len(leituras) == 3 and all(x.exportacao_kwh >= 0 and x.importacao_kwh > 0 for x in leituras)
+    assert all(x.carga_kwh is None for x in leituras)  # ponto "rede" não mede a carga
+    med.provedor_api = "esp"
+    assert isinstance(provedor_medidor(med), FakeMedidor)  # sem token: demonstração
+    med.gerar_token()
+    assert provedor_medidor(med).codigo == "esp"
     assert notificador("whatsapp").demo
+
+
+def test_curva_do_dia_fake(usina_a):
+    inv = _inv(usina_a)
+    ontem = timezone.localdate() - datetime.timedelta(days=1)
+    n = services.coletar_curva(inv, ontem)
+    assert n == 49  # 5h30 a 17h30, a cada 15 min
+    pontos = services.curva_do_dia([usina_a], ontem)
+    assert max(kw for _, kw in pontos) > 0
 
 
 def test_coleta_e_geracao_no_periodo(usina_a):
@@ -120,6 +134,10 @@ def test_painel_agrupa_por_cliente_e_isola_integradoras(client, gestor_a, usina_
 def test_seed_demo_roda(db):
     from django.core.management import call_command
 
+    from apps.faturas.models import Fatura
+
     call_command("seed_demo", dias=5)
-    assert Usina.objects.count() == 9
-    assert Inversor.objects.filter(provedor_api="goodwe").count() == 2
+    assert Usina.objects.count() == 11
+    assert Inversor.objects.filter(provedor_api="goodwe").count() == 3
+    assert Fatura.objects.filter(status="divergente").exists()
+    assert Fatura.objects.filter(status="conferida").exists()

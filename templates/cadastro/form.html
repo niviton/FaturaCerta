@@ -1,14 +1,21 @@
 {% extends "base.html" %}
 {% block title %}{{ titulo }} · FaturaCerta{% endblock %}
+{% block migalhas %}{% if voltar %}<a href="{{ voltar }}">{{ voltar_titulo|default:"Voltar" }}</a><span>/</span>{% endif %}<span>{{ titulo }}</span>{% endblock %}
 {% block content %}
-<div class="cabecalho"><h1>{{ titulo }}</h1></div>
-<form method="post" enctype="multipart/form-data" class="formulario" novalidate>
+<div class="cab"><div><h1>{{ titulo }}</h1>{% if subtitulo %}<p>{{ subtitulo }}</p>{% endif %}</div></div>
+<form method="post" enctype="multipart/form-data" novalidate>
   {% csrf_token %}
   {% if form.non_field_errors %}<div class="aviso" role="alert">{{ form.non_field_errors }}</div>{% endif %}
-  {% for field in form %}{% include "cadastro/_campo.html" %}{% endfor %}
-  <div class="acoes">
-    <button type="submit" class="botao principal">Salvar</button>
-    <a class="botao" href="javascript:history.back()">Cancelar</a>
+  {% for s in form.secoes_renderizadas %}
+  <div class="form-secao">
+    <div>{% if s.titulo %}<h2>{{ s.titulo }}</h2>{% endif %}{% if s.ajuda %}<p class="ajuda-secao">{{ s.ajuda }}</p>{% endif %}</div>
+    <div class="campos">{% for field in s.campos %}{% include "cadastro/_campo.html" %}{% endfor %}</div>
+  </div>
+  {% endfor %}
+  {% block extra_form %}{% endblock %}
+  <div class="form-rodape">
+    <button type="submit" class="botao principal">{{ botao|default:"Salvar" }}</button>
+    <a class="botao" href="{{ voltar|default:'javascript:history.back()' }}">Cancelar</a>
   </div>
 </form>
 {% endblock %}

@@ -1,34 +1,27 @@
 {% extends "base.html" %}
 {% load humanize %}
 {% block title %}Usinas agora · FaturaCerta{% endblock %}
+{% block migalhas %}<span>Usinas agora</span>{% endblock %}
+{% block topo_acoes %}{% if demo %}<span class="selo demo">dados de demonstração</span>{% endif %}
+  <form method="post" hx-post="{% url 'monitoramento:painel' %}?{{ request.GET.urlencode }}" hx-target="#lista" hx-swap="outerHTML" class="inline">{% csrf_token %}
+    <button class="botao pequeno" type="submit"><svg aria-hidden="true"><use href="#i-atualizar"/></svg>Atualizar agora</button></form>{% endblock %}
 {% block content %}
-<div class="cabecalho">
-  <div>
-    <h1>Usinas agora</h1>
-    <p>{{ total }} usina{{ total|pluralize }} de {{ grupos|length }} cliente{{ grupos|length|pluralize }}{% if marcas %}, {{ marcas|length }} fabricante{{ marcas|length|pluralize }}: {{ marcas|join:", " }}{% endif %}
-      {% if demo %}<span class="selo demo">dados de demonstração</span>{% endif %}</p>
-  </div>
-  <form class="acoes" method="post" hx-post="{% url 'monitoramento:painel' %}?{{ request.GET.urlencode }}" hx-target="#lista" hx-swap="outerHTML">
-    {% csrf_token %}
-    <button class="botao" type="submit">Atualizar agora</button>
-  </form>
+<div class="cab">
+  <div><h1>Usinas agora</h1><p>{{ total }} usina{{ total|pluralize }} de {{ grupos|length }} cliente{{ grupos|length|pluralize }}{% if marcas %}, {{ marcas|length }} fabricante{{ marcas|length|pluralize }}: {{ marcas|join:", " }}{% endif %}. Atualiza sozinho a cada minuto.</p></div>
 </div>
 
-<div class="placar" role="list">
-  <div role="listitem"><span class="placar-num">{{ potencia|floatformat:1 }}<small> kW</small></span><span>potência agora, de {{ kwp|floatformat:0 }} kWp instalados</span></div>
-  <div role="listitem"><span class="placar-num">{{ energia_hoje|floatformat:0|intcomma }}<small> kWh</small></span><span>gerados hoje</span></div>
-  <div role="listitem"><span class="placar-num">{{ gerando }}<small> / {{ total }}</small></span><span>gerando normalmente</span></div>
-  <div role="listitem" class="{% if atencao %}alerta{% endif %}"><span class="placar-num">{{ atencao }}</span><span>precisa{{ atencao|pluralize:"m" }} de atenção{% if paradas %}, {{ paradas }} parada{{ paradas|pluralize }}{% endif %}</span></div>
+<div class="kpis">
+  <div class="kpi energia"><span class="kpi-rotulo">Potência agora</span><span class="kpi-valor">{{ potencia|floatformat:1 }}<small>kW</small></span><span class="kpi-rodape">de {{ kwp|floatformat:0 }} kWp instalados</span></div>
+  <div class="kpi"><span class="kpi-rotulo">Gerado hoje</span><span class="kpi-valor">{{ energia_hoje|floatformat:0|intcomma }}<small>kWh</small></span><span class="kpi-rodape">todas as usinas</span></div>
+  <div class="kpi"><span class="kpi-rotulo">Gerando normalmente</span><span class="kpi-valor">{{ gerando }}<small>/ {{ total }}</small></span><span class="kpi-rodape">usinas</span></div>
+  <div class="kpi {% if atencao %}alerta{% endif %}"><span class="kpi-rotulo">Precisam de atenção</span><span class="kpi-valor">{{ atencao }}</span><span class="kpi-rodape">{% if paradas %}{{ paradas }} parada{{ paradas|pluralize }} ou sem comunicação{% else %}nenhuma parada{% endif %}</span></div>
 </div>
 
-<form class="filtros" method="get" hx-get="{% url 'monitoramento:painel' %}" hx-target="#lista" hx-swap="outerHTML" hx-push-url="true" hx-trigger="change, submit, keyup changed delay:300ms from:#q">
-  <fieldset class="abas">
-    <legend class="pular">Filtrar usinas</legend>
-    {% for chave, nome in filtros.items %}
-    <label class="aba"><input type="radio" name="filtro" value="{{ chave }}" {% if chave == filtro %}checked{% endif %}> {{ nome }}</label>
-    {% endfor %}
+<form class="filtros" style="margin-top:1.25rem" method="get" hx-get="{% url 'monitoramento:painel' %}" hx-target="#lista" hx-swap="outerHTML" hx-push-url="true" hx-trigger="change, submit, keyup changed delay:300ms from:#q">
+  <fieldset class="segmentos"><legend class="sr">Filtrar usinas</legend>
+    {% for chave, nome in filtros.items %}<label class="segmento"><input type="radio" name="filtro" value="{{ chave }}" {% if chave == filtro %}checked{% endif %}> {{ nome }}</label>{% endfor %}
   </fieldset>
-  <label class="pular" for="q">Buscar</label>
+  <label class="sr" for="q">Buscar</label>
   <input type="search" id="q" name="q" value="{{ q }}" placeholder="Cliente, usina ou fabricante">
 </form>
 

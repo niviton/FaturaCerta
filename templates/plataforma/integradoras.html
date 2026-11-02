@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Integradoras · FaturaCerta{% endblock %}
+{% block migalhas %}<a href="{% url 'plataforma:visao' %}">Plataforma</a><span>/</span><span>Integradoras</span>{% endblock %}
+{% block content %}
+<div class="cab">
+  <div><h1>Integradoras</h1><p>Empresas que assinam o sistema. Cada uma vê só os próprios clientes.</p></div>
+  <div class="acoes"><a class="botao principal" href="{% url 'plataforma:integradora_nova' %}"><svg aria-hidden="true"><use href="#i-mais"/></svg>Nova integradora</a></div>
+</div>
+<section class="painel"><div class="tabela-caixa"><table class="itens">
+  <thead><tr><th>Integradora</th><th>Responsável técnico</th><th>Plano</th><th class="num">Clientes</th><th class="num">Usinas</th><th class="num">kWp</th><th class="num">Usuários</th><th>Situação</th><th></th></tr></thead>
+  <tbody>{% for i in object_list %}
+  <tr><td><span class="forte">{{ i }}</span><span class="sub">CNPJ {{ i.cnpj }}{% if i.email_contato %} · {{ i.email_contato }}{% endif %}</span></td>
+      <td>{{ i.responsavel_tecnico_nome|default:"—" }}<span class="sub">{{ i.responsavel_tecnico_crea }}</span></td>
+      <td>{{ i.get_plano_display }}{% if i.valor_por_usina %}<span class="sub">R$ {{ i.valor_por_usina }}/usina{% if i.taxa_exito_pct %} + {{ i.taxa_exito_pct|floatformat:0 }}% de êxito{% endif %}</span>{% endif %}</td>
+      <td class="num">{{ i.n_clientes }}</td><td class="num">{{ i.n_usinas }}</td><td class="num">{{ i.kwp|floatformat:1 }}</td><td class="num">{{ i.n_usuarios }}</td>
+      <td>{% if i.ativa %}<span class="selo confere">ativa</span>{% else %}<span class="selo neutro">inativa</span>{% endif %}</td>
+      <td><div class="acoes"><a class="botao pequeno" href="{% url 'plataforma:integradora_editar' i.pk %}">Editar</a>
+        <form method="post" action="{% url 'plataforma:atuar' i.pk %}" class="inline">{% csrf_token %}<button class="botao pequeno azul" type="submit">Entrar como</button></form></div></td></tr>
+  {% empty %}<tr><td colspan="9" class="secundario">Nenhuma integradora.</td></tr>{% endfor %}</tbody>
+</table></div></section>
+{% endblock %}
