@@ -11,3 +11,6 @@ htmlcov/
 .ruff_cache/
 # faturas reais: nunca versionar
 samples/faturas/
+
+# configurações locais do Claude Code
+.claude/settings.local.json
