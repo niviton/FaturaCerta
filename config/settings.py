@@ -133,6 +133,7 @@ NOTIFY_EMAIL_PROVIDER = os.environ.get("NOTIFY_EMAIL_PROVIDER", "fake")  # fake|
 NOTIFY_WHATSAPP_PROVIDER = os.environ.get("NOTIFY_WHATSAPP_PROVIDER", "fake")  # fake|cloud
 WHATSAPP_TOKEN = os.environ.get("WHATSAPP_TOKEN", "")
 WHATSAPP_PHONE_ID = os.environ.get("WHATSAPP_PHONE_ID", "")
+WHATSAPP_TEMPLATE = os.environ.get("WHATSAPP_TEMPLATE", "alerta_usina")
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "FaturaCerta <nao-responda@faturacerta.local>")
 EMAIL_BACKEND = os.environ.get("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
 

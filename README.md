@@ -9,6 +9,8 @@ concessionária, cruzando três fontes na janela de leitura de cada conta:
 
 Região inicial: Natal-RN (Neoenergia Cosern). Outras concessionárias entram por configuração.
 
+**Manual completo (uso e técnico): [docs/MANUAL.md](docs/MANUAL.md).**
+
 ## Perfis
 
 | Perfil | O que faz |
