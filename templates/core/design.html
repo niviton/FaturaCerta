@@ -187,11 +187,39 @@
 
 <section class="ds-secao" aria-labelledby="t-graficos">
   <h2 id="t-graficos">Gráficos</h2>
-  <p class="muted">Os 12 tipos (ECharts, temas claro e escuro) entram aqui na etapa 2. A moldura já está pronta:</p>
-  <div class="grade g-2">
-    {% include "components/chart_panel.html" with id="ds-vazio" titulo="Geração × esperado" sub="Últimos 30 dias" periodos=periodos vazio_texto="Conecte um inversor para ver a geração aqui." %}
-    <section class="painel grafico-painel"><div class="painel-cab"><div><h3>Carregando</h3><p>Enquanto o HTMX troca o conteúdo</p></div>
-      <div class="periodo" role="group" aria-label="Período"><button type="button" aria-pressed="false">7D</button><button type="button" aria-pressed="true">30D</button><button type="button" aria-pressed="false">12M</button></div></div>
+  <p class="muted">Apache ECharts com tema gerado dos tokens (troca junto com o tema da página), tooltip em vidro com linha tracejada, valores em pt-BR e a tabela "Ver os números" em cada um. O número entre parênteses é a posição no catálogo e o texto diz onde o gráfico vai morar.</p>
+
+  <div class="grade g-21">
+    {% include "components/chart_panel.html" with id="g1" dados=g.sankey titulo="(1) Para onde foi a energia" sub="Gerado → consumo instantâneo e injetado → compensado ou não. Detalhe da fatura e visão geral." altura="320px" %}
+    {% include "components/chart_panel.html" with id="g12" dados=g.gauge titulo="(12) Economia no ano" sub="Contra a meta do cliente. Portal do cliente." altura="320px" %}
+  </div>
+  <div class="grade" style="margin-top:1rem">
+    {% include "components/chart_panel.html" with id="g2" dados=g.geracao titulo="(2) Geração × esperado" sub="Área solar com a faixa esperada (mínimo a máximo); pontos vermelhos abaixo da faixa. Detalhe da usina." altura="300px" %}
+  </div>
+  <div class="grade g-2" style="margin-top:1rem">
+    {% include "components/chart_panel.html" with id="g3" dados=g.injetado titulo="(3) Injetado × compensado" sub="Meses com diferença destacados, com o valor perdido. Visão geral da integradora." altura="300px" %}
+    {% include "components/chart_panel.html" with id="g4" dados=g.cascata titulo="(4) Cascata da fatura" sub="Da conta sem solar à conta com solar. Detalhe da fatura e portal." altura="300px" %}
+  </div>
+  <div class="grade g-2" style="margin-top:1rem">
+    {% include "components/chart_panel.html" with id="g5" dados=g.aneis titulo="(5) Desempenho da usina" sub="≥ 85% verde, 60 a 85% âmbar, abaixo de 60% vermelho. Usinas e detalhe da usina." altura="170px" %}
+    {% include "components/chart_panel.html" with id="g9" dados=g.bullet titulo="(9) Demanda: contratada × medida" sub="Grupo A, 12 meses. Recomendações de economia." altura="260px" %}
+  </div>
+  <div class="grade" style="margin-top:1rem">
+    {% include "components/chart_panel.html" with id="g6" dados=g.calendario titulo="(6) Geração diária no último ano" sub="Cada quadrado é um dia; dias sem geração saltam em vermelho. Detalhe da usina." altura="220px" %}
+  </div>
+  <div class="grade g-3" style="margin-top:1rem">
+    {% include "components/chart_panel.html" with id="g7" dados=g.rosca titulo="(7) Fabricantes de inversor" sub="kWp por marca. Visão geral da plataforma." altura="280px" %}
+    {% include "components/chart_panel.html" with id="g7b" dados=g.rosca_gd titulo="(7) Enquadramento" sub="GD1 × GD2 pela data do protocolo." altura="280px" %}
+    {% include "components/chart_panel.html" with id="g8b" dados=g.ranking_div titulo="(8) Divergências por tipo" sub="Faturas no mês. Visão geral da integradora." altura="280px" %}
+  </div>
+  <div class="grade g-21" style="margin-top:1rem">
+    {% include "components/chart_panel.html" with id="g11" dados=g.mapa titulo="(11) Mapa das usinas" sub="Cor pela situação; pontos próximos se agrupam. Visão geral da integradora." altura="340px" %}
+    {% include "components/chart_panel.html" with id="g8" dados=g.ranking titulo="(8) Potência por integradora" sub="kWp monitorados. Visão geral da plataforma." altura="340px" %}
+  </div>
+  <p class="muted small" style="margin-top:1rem">(10) As sparklines são as linhas dentro dos indicadores no topo desta página: SVG gerado no servidor, mais leve que um gráfico inteiro.</p>
+  <div class="grade g-2" style="margin-top:1rem">
+    {% include "components/chart_panel.html" with id="g-vazio" titulo="Estado vazio" sub="Quando ainda não há dados" vazio_texto="Conecte um inversor para ver a geração aqui." %}
+    <section class="painel grafico-painel"><div class="painel-cab"><div><h3>Carregando</h3><p>Enquanto o HTMX troca o conteúdo</p></div></div>
       <div class="skeleton" style="height:200px;border-radius:12px"></div></section>
   </div>
 </section>

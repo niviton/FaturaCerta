@@ -4,6 +4,7 @@ from django.shortcuts import redirect, render
 from django.utils import timezone
 
 from .audit import registrar
+from .charts import exemplos_design
 from .manuais import MANUAIS, manuais_do_usuario
 from .models import LogAuditoria
 
@@ -65,7 +66,7 @@ def design(request):
                                       {"v": "30,3 kWp", "num": True}, {"v": "0,0 kWh", "num": True},
                                       {"v": "0%", "num": True}]},
         ],
-        "periodos": ["7D", "30D", "12M"],
+        "g": exemplos_design(),
         "skel": ["70%", "45%", "60%"],
         "nav_celular": [{"titulo": "Início", "url": "#", "icone": "house", "ativo": True},
                         {"titulo": "Usinas", "url": "#", "icone": "sun"},

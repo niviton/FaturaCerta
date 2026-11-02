@@ -349,6 +349,28 @@ input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--accent); }
                   font: 500 var(--t-12) var(--font); cursor: pointer; }
 .periodo button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
 
+/* mapa (Leaflet) */
+.grafico-mapa { border-radius: 12px; overflow: hidden; background: var(--surface-2); }
+.grafico-mapa .leaflet-container { background: var(--surface-2); font-family: var(--font); }
+.mapa-escuro .leaflet-tile-pane { filter: invert(1) hue-rotate(185deg) brightness(.82) contrast(.92) saturate(.35); }
+.mapa-ponto { display: block; width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--surface); margin: 2px;
+              background: var(--ok); box-shadow: 0 0 0 4px color-mix(in srgb, var(--ok) 30%, transparent), 0 0 14px var(--ok); }
+.mapa-ponto.mapa-solar { background: var(--solar); box-shadow: 0 0 0 4px color-mix(in srgb, var(--solar) 30%, transparent), 0 0 14px var(--solar); border-radius: 3px; }
+.mapa-ponto.mapa-danger { background: var(--danger); box-shadow: 0 0 0 4px color-mix(in srgb, var(--danger) 30%, transparent), 0 0 16px var(--danger);
+                          border-radius: 2px; transform: rotate(45deg); }
+.mapa-grupo { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; font: 600 12px var(--font);
+              color: var(--text); background: var(--glass); backdrop-filter: blur(10px); border: 2px solid var(--ok); }
+.mapa-grupo.mapa-solar { border-color: var(--solar); }
+.mapa-grupo.mapa-danger { border-color: var(--danger); }
+.leaflet-popup-content-wrapper, .leaflet-popup-tip { background: var(--glass) !important; color: var(--text) !important;
+  backdrop-filter: blur(14px); border: 1px solid var(--border-strong); box-shadow: var(--shadow-float) !important; }
+.leaflet-popup-content-wrapper { border-radius: 12px !important; }
+.mapa-popup { display: flex; flex-direction: column; gap: .2rem; font: 400 13px var(--font); min-width: 160px; }
+.mapa-popup strong { font-size: 14px; }
+.leaflet-control-zoom a { background: var(--surface) !important; color: var(--text) !important; border-color: var(--border) !important; }
+.leaflet-control-attribution { background: color-mix(in srgb, var(--surface) 80%, transparent) !important; color: var(--muted) !important; font-size: 10px !important; }
+.leaflet-control-attribution a { color: var(--muted) !important; }
+
 /* ============================================================ estado vazio */
 .vazio { display: flex; flex-direction: column; align-items: center; text-align: center; gap: .5rem; padding: 2.5rem 1.5rem;
          border-radius: var(--r-panel); border: 1px dashed var(--border-strong); color: var(--muted); }

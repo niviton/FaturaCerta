@@ -90,8 +90,12 @@ def main():
                     if resp is None or resp.status >= 400:
                         print(f"  pulei {nome}: HTTP {resp.status if resp else '?'}")
                         continue
-                    pag.wait_for_load_state("networkidle")
-                    pag.wait_for_timeout(700)  # animação de entrada dos gráficos
+                    pag.wait_for_load_state("load")
+                    try:  # o mapa segue baixando partes do mapa; não espera a rede parar para sempre
+                        pag.wait_for_load_state("networkidle", timeout=6000)
+                    except Exception:  # noqa: BLE001
+                        pass
+                    pag.wait_for_timeout(1500)  # animação de entrada dos gráficos
                     arquivo = saida / f"{nome}_{nome_tam}{'_claro' if args.tema == 'claro' else ''}.jpg"
                     pag.screenshot(path=str(arquivo), full_page=True, type="jpeg", quality=78)
                     print(f"  {arquivo.relative_to(BASE)}")

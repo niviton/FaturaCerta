@@ -1,6 +1,6 @@
 """Tags do design system: ícones, sparklines e formatação pt-BR."""
 
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from django import template
 from django.utils.formats import number_format
@@ -53,25 +53,32 @@ def sparkline(valores, tom="brand", largura=160, altura=38):
         w=largura, h=altura, g=gid, c=cor, a=area, l=linha, ux=f"{ux:.1f}", uy=f"{uy:.1f}")
 
 
+def _fmt(valor, casas):
+    """Número no padrão brasileiro; texto que não é número volta como está."""
+    if valor in (None, ""):
+        return None
+    try:
+        return number_format(Decimal(str(valor)), int(casas), force_grouping=True)
+    except (InvalidOperation, ValueError, TypeError):
+        return str(valor)
+
+
 @register.filter
 def brl(valor, casas=2):
-    if valor in (None, ""):
-        return "—"
-    return f"R$ {number_format(Decimal(str(valor)), int(casas), force_grouping=True)}"
+    v = _fmt(valor, casas)
+    return "—" if v is None else f"R$ {v}"
 
 
 @register.filter
 def kwh(valor, casas=1):
-    if valor in (None, ""):
-        return "—"
-    return f"{number_format(Decimal(str(valor)), int(casas), force_grouping=True)} kWh"
+    v = _fmt(valor, casas)
+    return "—" if v is None else f"{v} kWh"
 
 
 @register.filter
 def ptbr(valor, casas=0):
-    if valor in (None, ""):
-        return "—"
-    return number_format(Decimal(str(valor)), int(casas), force_grouping=True)
+    v = _fmt(valor, casas)
+    return "—" if v is None else v
 
 
 @register.filter
