@@ -1,22 +1,23 @@
 {% extends "base.html" %}
+{% load fc %}
 {% block title %}{{ object }} · FaturaCerta{% endblock %}
-{% block migalhas %}<a href="{% url 'cadastro:clientes' %}">Clientes</a><span>/</span><a href="{% url 'cadastro:cliente' object.cliente_id %}">{{ object.cliente }}</a><span>/</span><span>{{ object }}</span>{% endblock %}
+{% block migalhas %}<a href="{% url 'cadastro:clientes' %}">Clientes</a>{% icone "chevron-right" %}<a href="{% url 'cadastro:cliente' object.cliente_id %}">{{ object.cliente }}</a>{% icone "chevron-right" %}<span>{{ object }}</span>{% endblock %}
 {% block content %}
-<div class="cab">
+<div class="pagina-cab">
   <div>
     <h1>{{ object }}</h1>
-    <p>{{ object.cliente }} · {{ object.concessionaria.nome }}{% if object.codigo_cliente %} · código do cliente {{ object.codigo_cliente }}{% endif %}</p>
-    <div class="chips">
-      <span class="chip cobalto">{{ object.perfil_tarifario }}</span>
-      {% if object.custo_disponibilidade_kwh %}<span class="chip">mínimo {{ object.custo_disponibilidade_kwh }} kWh</span>{% endif %}
-      {% if object.demanda_contratada_kw %}<span class="chip">demanda {{ object.demanda_contratada_kw|floatformat:0 }} kW</span>{% endif %}
-      {% for u in usinas %}<span class="chip lime">{{ u.nome }} · {{ u.enquadramento|default:"GD ?" }}</span>{% endfor %}
+    <p>{{ object.cliente }} · {{ object.concessionaria.nome }}{% if object.codigo_cliente %} · código do cliente <span class="mono">{{ object.codigo_cliente }}</span>{% endif %}</p>
+    <div class="acoes" style="margin-top:.7rem">
+      {% include "components/status_pill.html" with tom="brand" texto=object.perfil_tarifario sem_ponto=True %}
+      {% if disp_txt %}{% include "components/status_pill.html" with texto=disp_txt sem_ponto=True %}{% endif %}
+      {% if demanda_txt %}{% include "components/status_pill.html" with texto=demanda_txt sem_ponto=True %}{% endif %}
+      {% for u in usinas %}{% include "components/status_pill.html" with tom="accent" texto=u.nome|add:" · "|add:u.enquadramento sem_ponto=True %}{% endfor %}
     </div>
   </div>
   <div class="acoes">
-    <a class="botao" href="{% url 'cadastro:uc_editar' object.pk %}">Editar UC</a>
-    {% if not medidores %}<a class="botao" href="{% url 'cadastro:medidor_novo' object.pk %}">Vincular medidor próprio</a>{% endif %}
-    <a class="botao principal" href="{% url 'faturas:nova' %}?uc={{ object.pk }}"><svg aria-hidden="true"><use href="#i-mais"/></svg>Lançar fatura</a>
+    <a class="btn" href="{% url 'cadastro:uc_editar' object.pk %}">{% icone "settings" "i-sm" %}Editar UC</a>
+    {% if not medidores %}<a class="btn" href="{% url 'cadastro:medidor_novo' object.pk %}">{% icone "gauge" "i-sm" %}Vincular medidor</a>{% endif %}
+    <a class="btn btn-primario" href="{% url 'faturas:nova' %}?uc={{ object.pk }}">{% icone "plus" "i-sm" %}Lançar fatura</a>
   </div>
 </div>
 
@@ -30,71 +31,88 @@
 
 {% if aba == "analise" %}
   {% if sel %}
-  <div class="cab" style="margin-bottom:1rem">
-    <div><h2>Período {{ sel.rotulo }}: {{ sel.inicio|date:"d/m" }} a {{ sel.fim|date:"d/m/Y" }} ({{ sel.dias }} dias)</h2>
-      <p>{% if sel.fatura %}Janela de leitura da fatura. A geração do inversor é somada exatamente nestas datas.{% else %}Sem fatura neste período: mês civil, só com inversor e medidor próprio.{% endif %}</p></div>
-    {% if balancos|length > 1 %}<form method="get" class="acoes"><input type="hidden" name="aba" value="analise"><label class="sr" for="fatura">Período</label>
-      <select id="fatura" name="fatura" onchange="this.form.submit()">{% for b in balancos reversed %}{% if b.fatura %}<option value="{{ b.fatura.pk }}" {% if b == sel %}selected{% endif %}>{{ b.rotulo }}{% if b.indicios %} · {{ b.indicios|length }} indício{{ b.indicios|length|pluralize }}{% endif %}</option>{% endif %}{% endfor %}</select></form>{% endif %}
+  <div class="pagina-cab" style="margin-bottom:1.25rem">
+    <div><h2 style="font-size:var(--t-24)">Conta de {{ sel.rotulo }}</h2>
+      <p style="font-size:var(--t-14)">Leitura de {{ sel.inicio|date:"d/m" }} a {{ sel.fim|date:"d/m/Y" }} ({{ sel.dias }} dias).{% if sel.fatura %} A geração do inversor é somada exatamente nestas datas.{% else %} Sem fatura neste período: mês civil, só com inversor e medidor próprio.{% endif %}</p></div>
+    <div class="acoes">
+      {% if balancos|length > 1 %}<form method="get"><input type="hidden" name="aba" value="analise"><label class="sr-only" for="fatura">Período</label>
+        <select id="fatura" name="fatura" onchange="this.form.submit()" style="border-radius:var(--r-pill);min-width:200px">{% for b in balancos reversed %}{% if b.fatura %}<option value="{{ b.fatura.pk }}" {% if b == sel %}selected{% endif %}>{{ b.rotulo }}{% if b.indicios %} · {{ b.indicios|length }} indício{{ b.indicios|length|pluralize }}{% endif %}</option>{% endif %}{% endfor %}</select></form>{% endif %}
+      {% if sel.fatura %}<a class="btn" href="{% url 'faturas:editar' sel.fatura.pk %}">{% icone "file-text" "i-sm" %}Ver fatura</a>{% endif %}
+      <button class="btn btn-primario" type="button" disabled title="O laudo de contestação chega com o motor de regras" style="opacity:.55;cursor:not-allowed">{% icone "file-text" "i-sm" %}Gerar laudo</button>
+    </div>
   </div>
 
-  <div class="fontes">
+  {# conciliação: os quatro números que contam a história da conta #}
+  <div class="kpis entra">
+    {% include "components/kpi_card.html" with rotulo="Gerado" icone="sun" valor=sel.geracao_kwh unidade="kWh" estado="solar" rodape=desempenho_txt %}
+    {% include "components/kpi_card.html" with rotulo="Injetado na rede" icone="arrow-up-right" valor=sel.injetada_ref unidade="kWh" rodape="sobrou e foi para a rede" %}
+    {% include "components/kpi_card.html" with rotulo="Consumo instantâneo" icone="zap" valor=sel.autoconsumo_kwh unidade="kWh" estado="energia" rodape="usado na hora; não passa pelo medidor" %}
+    {% if nao_compensado %}
+    {% include "components/kpi_card.html" with rotulo="Compensado" icone="triangle-alert" valor=sel.fat_compensada unidade="kWh" estado="danger" rodape=nao_comp_txt %}
+    {% else %}
+    {% include "components/kpi_card.html" with rotulo="Compensado" icone="circle-check" valor=sel.fat_compensada unidade="kWh" estado="ok" rodape=credito_txt %}
+    {% endif %}
+  </div>
+
+  <div class="grade g-21" style="margin-top:1rem">
+    {% if g_sankey %}{% include "components/chart_panel.html" with id="g-sankey" dados=g_sankey titulo="Para onde foi a energia" sub="Gerado, usado na hora, injetado e o destino da injeção nesta conta." altura="320px" %}{% endif %}
+    <section class="painel" aria-labelledby="t-ind">
+      <div class="painel-cab"><div><h3 id="t-ind">Indícios para auditoria</h3><p>Cruzamento das fontes em kWh</p></div>
+        {% if sel.fatura %}{% if sel.indicios %}{% include "components/status_pill.html" with tom="danger" texto="divergência" %}{% else %}{% include "components/status_pill.html" with tom="ok" texto="confere" %}{% endif %}{% endif %}</div>
+      {% if sel.indicios %}
+      <ul class="indicios">{% for i in sel.indicios %}<li class="indicio {{ i.gravidade }}"><span class="marca-g"></span><strong>{{ i.titulo }}</strong><span>{{ i.detalhe }}</span></li>{% endfor %}</ul>
+      {% else %}{% include "components/empty_state.html" with icone="circle-check" titulo="As fontes batem" texto="Inversor, medidor próprio e fatura contam a mesma história neste período." %}{% endif %}
+      <p class="muted small" style="margin:1rem 0 0">O valor a recuperar em R$ sai do motor de regras com as tabelas da ANEEL.</p>
+    </section>
+  </div>
+
+  {% if conferencia %}
+  <section class="painel" style="margin-top:1rem" aria-labelledby="t-conf">
+    <div class="painel-cab"><div><h3 id="t-conf">Faturado × conferido</h3><p>O que a concessionária cobrou contra o que as outras fontes dizem</p></div></div>
+    <div class="tabela-caixa"><table class="tabela">
+      <thead><tr><th scope="col">Item</th><th scope="col" class="num">Na fatura</th><th scope="col" class="num">Conferido</th><th scope="col">Fonte</th><th scope="col" class="num">Diferença</th></tr></thead>
+      <tbody>{% for l in conferencia %}
+        <tr><td class="principal-col">{{ l.nome }}</td><td class="num">{{ l.faturado|ptbr:1 }} kWh</td><td class="num">{{ l.esperado|ptbr:1 }} kWh</td>
+          <td class="muted">{{ l.fonte }}</td>
+          <td class="num">{% if l.diverge %}<span class="pill pill-danger">{% if l.diferenca > 0 %}+{% endif %}{{ l.diferenca|ptbr:1 }} kWh</span>{% else %}<span class="pill pill-ok">{{ l.diferenca|ptbr:1 }} kWh</span>{% endif %}</td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+  </section>
+  {% endif %}
+
+  <div class="fontes" style="margin-top:1rem">
     <section class="fonte {% if not fontes.inversor %}ausente{% endif %}" aria-labelledby="f1">
       <div class="fonte-cab"><span class="n">1</span><h3 id="f1">Inversor</h3></div>
       {% if sel.geracao_kwh is not None %}
-      <dl class="ficha uma">
-        <div><dt>Gerado</dt><dd>{{ sel.geracao_kwh|floatformat:1 }} kWh</dd></div>
-        <div><dt>Esperado</dt><dd>{{ sel.geracao_esperada_kwh|floatformat:1|default:"—" }} kWh</dd></div>
-        <div><dt>Desempenho</dt><dd>{% if sel.desempenho is not None %}{{ sel.desempenho }}%{% else %}—{% endif %}</dd></div>
-      </dl>
-      {% else %}<p class="secundario pequeno">Sem usina junto à carga com inversor nesta UC.</p>{% endif %}
+      <dl class="ficha uma"><div><dt>Gerado</dt><dd>{{ sel.geracao_kwh|kwh }}</dd></div><div><dt>Esperado</dt><dd>{{ sel.geracao_esperada_kwh|kwh }}</dd></div>
+        <div><dt>Desempenho</dt><dd>{% if sel.desempenho is not None %}{{ sel.desempenho }}%{% else %}—{% endif %}</dd></div></dl>
+      {% else %}<p class="muted small">Sem usina junto à carga com inversor nesta UC.</p>{% endif %}
     </section>
     <section class="fonte {% if not fontes.medidor %}ausente{% endif %}" aria-labelledby="f2">
       <div class="fonte-cab"><span class="n">2</span><h3 id="f2">Medidor próprio</h3></div>
       {% if sel.esp_cobertura is not None %}
-      <dl class="ficha uma">
-        <div><dt>Consumido da rede</dt><dd>{{ sel.esp_importacao_kwh|floatformat:1|default:"—" }} kWh</dd></div>
-        <div><dt>Injetado na rede</dt><dd>{{ sel.esp_exportacao_kwh|floatformat:1|default:"—" }} kWh</dd></div>
-        <div><dt>Consumo da carga</dt><dd>{{ sel.esp_carga_kwh|floatformat:1|default:"—" }}{% if sel.esp_carga_kwh is not None %} kWh{% endif %}</dd></div>
-        <div><dt>Dias com leitura</dt><dd>{% widthratio sel.esp_cobertura 1 100 %}%</dd></div>
-      </dl>
-      {% else %}<p class="secundario pequeno">Sem medidor próprio. <a href="{% url 'cadastro:medidor_novo' object.pk %}">Vincular um ESP</a> para provar o que entra e sai da rede.</p>{% endif %}
+      <dl class="ficha uma"><div><dt>Consumido da rede</dt><dd>{{ sel.esp_importacao_kwh|kwh }}</dd></div><div><dt>Injetado na rede</dt><dd>{{ sel.esp_exportacao_kwh|kwh }}</dd></div>
+        <div><dt>Dias com leitura</dt><dd>{% widthratio sel.esp_cobertura 1 100 %}%</dd></div></dl>
+      {% else %}<p class="muted small">Sem medidor próprio. <a href="{% url 'cadastro:medidor_novo' object.pk %}">Vincular um ESP</a> para provar o que entra e sai da rede.</p>{% endif %}
     </section>
     <section class="fonte {% if not sel.fatura %}ausente{% endif %}" aria-labelledby="f3">
-      <div class="fonte-cab"><span class="n">3</span><h3 id="f3">Concessionária</h3>{% if sel.fatura %}<span class="selo {% if sel.indicios %}diverge{% else %}confere{% endif %}" style="margin-left:auto">{% if sel.indicios %}{{ sel.indicios|length }} indício{{ sel.indicios|length|pluralize }}{% else %}confere{% endif %}</span>{% endif %}</div>
+      <div class="fonte-cab"><span class="n">3</span><h3 id="f3">Concessionária</h3></div>
       {% if sel.fatura %}
-      <dl class="ficha uma">
-        <div><dt>Consumo faturado</dt><dd>{{ sel.fat_consumo|floatformat:1 }} kWh</dd></div>
-        <div><dt>Injetado</dt><dd>{{ sel.fat_injetada|floatformat:1 }} kWh</dd></div>
-        <div><dt>Compensado</dt><dd>{{ sel.fat_compensada|floatformat:1 }} kWh</dd></div>
-        <div><dt>Total cobrado</dt><dd>R$ {{ sel.fat_total|floatformat:2 }}</dd></div>
-      </dl>
-      {% else %}<p class="secundario pequeno">Nenhuma fatura neste período. <a href="{% url 'faturas:nova' %}?uc={{ object.pk }}">Lançar fatura</a></p>{% endif %}
+      <dl class="ficha uma"><div><dt>Consumo faturado</dt><dd>{{ sel.fat_consumo|kwh }}</dd></div><div><dt>Injetado · compensado</dt><dd>{{ sel.fat_injetada|ptbr:0 }} · {{ sel.fat_compensada|ptbr:0 }} kWh</dd></div>
+        <div><dt>Total cobrado</dt><dd>{{ sel.fat_total|brl }}</dd></div></dl>
+      {% else %}<p class="muted small">Nenhuma fatura neste período. <a href="{% url 'faturas:nova' %}?uc={{ object.pk }}">Lançar fatura</a></p>{% endif %}
     </section>
   </div>
 
-  <div class="kpis" style="margin-top:1rem">
-    <div class="kpi"><span class="kpi-rotulo">Autoconsumo (sol na hora)</span><span class="kpi-valor">{{ sel.autoconsumo_kwh|floatformat:0|default:"—" }}<small>kWh</small></span><span class="kpi-rodape">gerado − injetado; não passa pelo medidor da concessionária</span></div>
-    <div class="kpi"><span class="kpi-rotulo">Consumo real da instalação</span><span class="kpi-valor">{{ sel.consumo_real_kwh|floatformat:0|default:"—" }}<small>kWh</small></span><span class="kpi-rodape">{% if sel.esp_carga_kwh is not None %}medido na carga{% else %}rede + autoconsumo{% endif %}</span></div>
-    <div class="kpi energia"><span class="kpi-rotulo">Atendido pelo sol</span><span class="kpi-valor">{{ sel.pct_atendido_solar|default:"—" }}<small>%</small></span><span class="kpi-rodape">autoconsumo + compensação</span></div>
-    <div class="kpi"><span class="kpi-rotulo">Economia estimada</span><span class="kpi-valor">{% if sel.economia_estimada is not None %}<small>R$</small> {{ sel.economia_estimada|floatformat:0 }}{% else %}—{% endif %}</span><span class="kpi-rodape">estimativa pela tarifa de referência{% if sel.custo_sem_solar_estimado %}; sem solar ~R$ {{ sel.custo_sem_solar_estimado|floatformat:0 }}{% endif %}</span></div>
-  </div>
-
-  <section class="painel">
-    <div class="painel-cab"><div><h2>Indícios para auditoria</h2><p>Cruzamento automático das fontes em kWh. O valor a recuperar em R$ sai do motor de regras com as tabelas da ANEEL.</p></div></div>
-    {% if sel.indicios %}
-    <ul class="indicios">{% for i in sel.indicios %}<li class="indicio {{ i.gravidade }}"><span class="marca-g"></span><strong>{{ i.titulo }}</strong><span>{{ i.detalhe }}</span></li>{% endfor %}</ul>
-    {% else %}<p class="aviso ok" style="margin:0">As fontes disponíveis batem entre si neste período.</p>{% endif %}
-  </section>
-
   <div class="grade g-2" style="margin-top:1rem">
-    {% if g_balanco %}{% include "componentes/grafico.html" with id="g-bal" dados=g_balanco titulo="Para onde foi a energia" sub="Barras: consumo real (autoconsumo + rede). Linha: geração do inversor." %}{% endif %}
+    {% if g_cascata %}{% include "components/chart_panel.html" with id="g-cascata" dados=g_cascata titulo="Da conta sem solar à conta cobrada" sub="Estimativa pela tarifa de referência; os valores cobrados vêm da fatura." altura="300px" %}{% endif %}
     {% if g_consumo %}{% include "componentes/grafico.html" with id="g-cons" dados=g_consumo titulo="Consumo: concessionária × medidor próprio" sub="Se a fatura fica sempre acima por um fator fixo, suspeite da constante do medidor." %}{% endif %}
-    {% if g_inj %}{% include "componentes/grafico.html" with id="g-inj" dados=g_inj titulo="Injetado × compensado" sub="Injeção sem compensação e sem saldo que explique é indício de erro." %}{% endif %}
-    {% if g_custo %}{% include "componentes/grafico.html" with id="g-custo" dados=g_custo titulo="Quanto pagou × quanto pagaria sem solar" sub="Sem solar é estimativa pela tarifa de referência da concessionária." %}{% endif %}
+    {% if g_balanco %}{% include "componentes/grafico.html" with id="g-bal" dados=g_balanco titulo="Consumo real, mês a mês" sub="Barras: usado na hora + vindo da rede. Linha: geração do inversor." %}{% endif %}
+    {% if g_inj %}{% include "componentes/grafico.html" with id="g-inj" dados=g_inj titulo="Injetado × compensado" sub="Segundo a fatura da concessionária." %}{% endif %}
+    {% if g_custo %}{% include "componentes/grafico.html" with id="g-custo" dados=g_custo titulo="Quanto pagou × quanto pagaria sem solar" sub="Sem solar é estimativa pela tarifa de referência." %}{% endif %}
   </div>
   {% else %}
-  <div class="vazio"><p>Ainda não há dados para analisar esta conta.</p><p>Vincule o inversor da usina, um medidor próprio ou lance a primeira fatura.</p>
-    <a class="botao principal" href="{% url 'faturas:nova' %}?uc={{ object.pk }}">Lançar fatura</a></div>
+  {% url 'faturas:nova' as url_fat %}{% include "components/empty_state.html" with icone="receipt" titulo="Ainda não há dados para analisar esta conta" texto="Vincule o inversor da usina, um medidor próprio ou lance a primeira fatura." acao_url=url_fat acao_texto="Lançar fatura" %}
   {% endif %}
 
 {% elif aba == "faturas" %}

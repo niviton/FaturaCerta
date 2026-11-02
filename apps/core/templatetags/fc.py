@@ -81,6 +81,40 @@ def ptbr(valor, casas=0):
     return "—" if v is None else v
 
 
+@register.simple_tag
+def anel(pct, rotulo=""):
+    """Anel de desempenho pequeno (SVG): ≥ 85% verde, 60–85% âmbar, < 60% vermelho."""
+    if pct is None:
+        return format_html('<figure><div class="anel" title="{} sem esperado"><svg viewBox="0 0 44 44" aria-hidden="true">'
+                           '<circle class="trilho" cx="22" cy="22" r="18"/></svg><span class="muted">—</span></div>'
+                           '<figcaption>{}</figcaption></figure>', rotulo, rotulo)
+    p = max(min(int(pct), 100), 0)
+    cor = "var(--ok)" if pct >= 85 else "var(--solar)" if pct >= 60 else "var(--danger)"
+    circ = 2 * 3.14159 * 18
+    return format_html(
+        '<figure><div class="anel" role="img" aria-label="{r}: {v}% do esperado">'
+        '<svg viewBox="0 0 44 44" aria-hidden="true">'
+        '<circle class="trilho" cx="22" cy="22" r="18"/>'
+        '<circle class="arco" cx="22" cy="22" r="18" stroke="{c}" stroke-dasharray="{d} {t}"/></svg>'
+        '<span>{v}</span></div><figcaption>{r}</figcaption></figure>',
+        r=rotulo, v=int(pct), c=cor, d=f"{circ * p / 100:.1f}", t=f"{circ:.1f}")
+
+
+@register.filter
+def cor_texto(hex_cor):
+    """Cor de texto legível sobre a cor dada (preto ou branco), pela luminância relativa."""
+    h = str(hex_cor or "").lstrip("#")
+    if len(h) != 6:
+        return "#0B1200"
+    r, g, b = (int(h[i:i + 2], 16) / 255 for i in (0, 2, 4))
+
+    def lin(c):
+        return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+
+    lum = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+    return "#0B1200" if lum > 0.36 else "#FFFFFF"
+
+
 @register.filter
 def iniciais(texto):
     partes = [p for p in str(texto).split() if p]

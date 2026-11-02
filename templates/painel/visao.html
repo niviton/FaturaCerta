@@ -1,47 +1,75 @@
 {% extends "base.html" %}
-{% load humanize %}
+{% load fc %}
 {% block title %}Visão geral · FaturaCerta{% endblock %}
-{% block migalhas %}<span>{{ tenant }}</span><span>/</span><span>Visão geral</span>{% endblock %}
-{% block topo_acoes %}{% if demo %}{% include "componentes/selo_demo.html" %}{% endif %}{% endblock %}
+{% block migalhas %}<span>{{ tenant }}</span>{% icone "chevron-right" %}<span>Visão geral</span>{% endblock %}
+{% block topo_acoes %}{% if demo %}{% include "components/selo_demo.html" %}{% endif %}{% endblock %}
 {% block content %}
-<div class="cab">
-  <div><h1>Visão geral</h1><p>{{ n_clientes }} cliente{{ n_clientes|pluralize }}, {{ n_usinas }} usina{{ n_usinas|pluralize }} e {{ kwp|floatformat:1 }} kWp sob monitoramento.</p></div>
-  <div class="acoes"><a class="botao" href="{% url 'monitoramento:painel' %}">Usinas agora</a><a class="botao principal" href="{% url 'cadastro:cliente_novo' %}"><svg aria-hidden="true"><use href="#i-mais"/></svg>Novo cliente</a></div>
+<div class="pagina-cab">
+  <div>
+    <h1>Visão geral</h1>
+    <p>{{ n_clientes }} cliente{{ n_clientes|pluralize }}, {{ n_usinas }} usina{{ n_usinas|pluralize }} e {{ kwp|ptbr:1 }} kWp sob monitoramento.</p>
+  </div>
+  <div class="acoes">
+    <a class="btn" href="{% url 'faturas:lista' %}?status=divergente">{% icone "receipt" "i-sm" %}Faturas com divergência</a>
+    <a class="btn btn-primario" href="{% url 'cadastro:cliente_novo' %}">{% icone "plus" "i-sm" %}Novo cliente</a>
+  </div>
 </div>
 
-<div class="kpis">
-  <div class="kpi energia"><span class="kpi-rotulo"><svg width="14" height="14" aria-hidden="true"><use href="#i-raio"/></svg>Potência agora</span>
-    <span class="kpi-valor">{{ potencia|floatformat:1 }}<small>kW</small></span><span class="kpi-rodape">{{ gerando }} de {{ n_usinas }} usinas gerando</span></div>
-  <div class="kpi"><span class="kpi-rotulo">Gerado hoje</span><span class="kpi-valor">{{ hoje_kwh|floatformat:0|intcomma }}<small>kWh</small></span><span class="kpi-rodape">soma de todos os fabricantes</span></div>
-  <div class="kpi"><span class="kpi-rotulo">Gerado no mês</span><span class="kpi-valor">{{ mes_kwh|floatformat:0|intcomma }}<small>kWh</small></span>
-    <span class="kpi-rodape">{% if mes_pct is not None %}<span class="{% if mes_pct >= 90 %}delta-bom{% else %}delta-ruim{% endif %}">{{ mes_pct }}%</span> do esperado até hoje{% endif %}</span></div>
-  <div class="kpi {% if atencao %}alerta{% endif %}"><span class="kpi-rotulo">Usinas que precisam de atenção</span><span class="kpi-valor">{{ atencao|length }}</span><span class="kpi-rodape">paradas, sem comunicação ou abaixo do esperado</span></div>
-  <div class="kpi {% if n_faturas_div %}alerta{% endif %}"><span class="kpi-rotulo">Faturas com divergência</span><span class="kpi-valor">{{ n_faturas_div }}</span><span class="kpi-rodape">{% if ultimo_mes %}{{ n_faturas_mes }} faturas de {{ ultimo_mes|date:"m/Y" }}{% endif %}</span></div>
+<div class="grade g-hero entra">
+  {% if perdido_rs %}
+    {% include "components/hero_card.html" with rotulo="Energia não compensada no último mês" icone="wallet" valor=perdido_rs casas=0 prefixo="≈ R$" sub=hero_sub estado="danger" acao_url=hero_url acao_texto="Conferir as faturas" serie=serie_div serie_legenda="Faturas com divergência por mês, 12 meses" %}
+  {% else %}
+    {% include "components/hero_card.html" with rotulo="Gerado hoje pela carteira" icone="sun" valor=hoje_kwh casas=0 unidade="kWh" sub="Nenhuma energia sem compensação no último mês." estado="ok" serie=serie_30 serie_legenda="Geração diária, 30 dias" %}
+  {% endif %}
+  <div class="kpis">
+    {% include "components/kpi_card.html" with rotulo="Potência agora" icone="zap" valor=potencia casas=1 unidade="kW" estado="energia" rodape="soma de todos os fabricantes" serie=serie_curva serie_tom="accent" %}
+    {% if mes_pct is not None %}{% if mes_pct >= 90 %}
+    {% include "components/kpi_card.html" with rotulo="Gerado no mês" icone="sun" valor=mes_kwh unidade="kWh" estado="solar" delta=mes_pct_txt delta_bom=True rodape="do esperado até hoje" serie=serie_30 serie_tom="solar" %}
+    {% else %}
+    {% include "components/kpi_card.html" with rotulo="Gerado no mês" icone="sun" valor=mes_kwh unidade="kWh" estado="solar" delta=mes_pct_txt rodape="do esperado até hoje" serie=serie_30 serie_tom="solar" %}
+    {% endif %}{% else %}
+    {% include "components/kpi_card.html" with rotulo="Gerado no mês" icone="sun" valor=mes_kwh unidade="kWh" estado="solar" serie=serie_30 serie_tom="solar" %}
+    {% endif %}
+    {% if atencao %}
+    {% include "components/kpi_card.html" with rotulo="Usinas com problema" icone="triangle-alert" valor=atencao|length estado="danger" rodape="paradas, sem comunicação ou abaixo do esperado" %}
+    {% else %}
+    {% include "components/kpi_card.html" with rotulo="Usinas com problema" icone="circle-check" valor=0 estado="ok" rodape="todas gerando normalmente" %}
+    {% endif %}
+    {% include "components/kpi_card.html" with rotulo="Faturas com divergência" icone="receipt" valor=n_faturas_div estado="danger" rodape="nos últimos 12 meses" serie=serie_div serie_tom="danger" %}
+  </div>
 </div>
 
-<div class="grade g-21" style="margin-top:1rem">
-  {% if g_diario %}{% include "componentes/grafico.html" with id="g-diario" dados=g_diario titulo="Geração da carteira, 30 dias" sub="Todas as usinas somadas. Linha tracejada: esperado dos projetos." %}{% endif %}
-  <section class="painel">
-    <div class="painel-cab"><div><h2>Precisa de atenção</h2><p>Ordenado pela gravidade.</p></div><a class="botao pequeno" href="{% url 'monitoramento:painel' %}?filtro=atencao">Ver todas</a></div>
+<div class="filtros" style="margin-top:1.5rem">
+  <nav class="filtro-tabs" aria-label="Usinas por situação">
+    {% for f in filtros %}<a class="filtro-tab" href="{{ f.url }}" {% if f.tom %}data-tom="{{ f.tom }}"{% endif %}>{{ f.rotulo }}<span class="contador">{{ f.contador }}</span></a>{% endfor %}
+  </nav>
+</div>
+
+<div class="grade g-21">
+  {% if g_sankey %}{% include "components/chart_panel.html" with id="g-sankey" dados=g_sankey titulo="Para onde foi a energia" sub="Última fatura de cada UC: o que foi usado na hora, compensado, virou crédito ou ficou sem compensação." altura="400px" %}{% endif %}
+  <section class="painel" aria-labelledby="t-atencao">
+    <div class="painel-cab"><div><h3 id="t-atencao">Precisa de atenção</h3><p>Ordenado pela gravidade</p></div>
+      <a class="btn btn-p" href="{% url 'monitoramento:painel' %}?filtro=atencao">Ver usinas</a></div>
     {% if atencao or faturas_div %}
     <ul class="indicios">
-      {% for r in atencao|slice:":6" %}<li class="indicio {% if r.situacao == 'abaixo' %}media{% else %}alta{% endif %}"><span class="marca-g"></span>
-        <strong><a href="{% url 'cadastro:usina' r.usina.pk %}">{{ r.usina.nome }}</a>: {{ r.rotulo|lower }}</strong>
+      {% for r in atencao|slice:":3" %}<li class="indicio {% if r.situacao == 'abaixo' %}media{% else %}alta{% endif %}"><span class="marca-g"></span>
+        <strong><a href="{% url 'cadastro:usina' r.usina.pk %}">{{ r.usina.nome }}</a> · {{ r.rotulo|lower }}</strong>
         <span>{{ r.usina.cliente }}{% if r.pct_7d is not None %} · {{ r.pct_7d }}% do esperado em 7 dias{% endif %}</span></li>{% endfor %}
-      {% for f in faturas_div|slice:":4" %}<li class="indicio alta"><span class="marca-g"></span>
+      {% for f in faturas_div|slice:":3" %}<li class="indicio alta"><span class="marca-g"></span>
         <strong><a href="{% url 'cadastro:uc' f.uc_id %}?aba=analise&fatura={{ f.pk }}">Fatura {{ f.mes_referencia|date:"m/Y" }} com divergência</a></strong>
         <span>{{ f.uc.cliente }} · {{ f.uc }}</span></li>{% endfor %}
     </ul>
-    {% else %}<p class="aviso ok" style="margin:0">Tudo em ordem agora.</p>{% endif %}
+    {% else %}{% include "components/empty_state.html" with icone="circle-check" titulo="Tudo em ordem" texto="Nenhuma usina parada e nenhuma fatura com divergência." %}{% endif %}
   </section>
 </div>
 
 <div class="grade g-2" style="margin-top:1rem">
-  {% if g_curva %}{% include "componentes/grafico.html" with id="g-curva" dados=g_curva titulo="Potência da carteira hoje" sub="Soma das usinas a cada 15 minutos." altura="baixo" %}{% endif %}
-  {% if g_desemp %}{% include "componentes/grafico.html" with id="g-desemp" dados=g_desemp titulo="Desempenho por usina, 7 dias" sub="Percentual da geração esperada. Laranja: abaixo de 80%. Vermelho: parada." altura="baixo" %}{% endif %}
+  {% if g_injetado %}{% include "components/chart_panel.html" with id="g-inj" dados=g_injetado titulo="Injetado × compensado" sub="Soma da carteira por mês. Em destaque, a energia que não foi compensada (R$ estimado pela tarifa de referência)." altura="300px" %}{% endif %}
+  {% if g_mapa %}{% include "components/chart_panel.html" with id="g-mapa" dados=g_mapa titulo="Mapa das usinas" sub="Cor pela situação de agora. Clique num ponto para abrir a usina." altura="300px" sem_tabela=True %}{% endif %}
 </div>
+
 <div class="grade g-21" style="margin-top:1rem">
-  {% if g_mensal %}{% include "componentes/grafico.html" with id="g-mensal" dados=g_mensal titulo="Geração mensal, 12 meses" sub="Gerado × esperado dos projetos." %}{% endif %}
-  {% if g_fab %}{% include "componentes/grafico.html" with id="g-fab" dados=g_fab titulo="Potência por fabricante" sub="kWp instalados por marca de inversor." %}{% endif %}
+  {% if g_geracao %}{% include "components/chart_panel.html" with id="g-ger" dados=g_geracao titulo="Geração da carteira × esperado" sub="Todas as usinas somadas, com a faixa esperada dos projetos." altura="300px" %}{% endif %}
+  {% if g_fab %}{% include "components/chart_panel.html" with id="g-fab" dados=g_fab titulo="Potência por fabricante" sub="kWp instalados por marca de inversor." altura="300px" %}{% endif %}
 </div>
 {% endblock %}

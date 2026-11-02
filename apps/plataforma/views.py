@@ -15,8 +15,8 @@ from apps.accounts.forms import UsuarioForm
 from apps.accounts.models import User
 from apps.cadastro.forms import IntegradoraAdminForm, InversorForm, MedidorForm
 from apps.cadastro.models import Cliente, Inversor, Medidor, UnidadeConsumidora, Usina
+from apps.core import charts
 from apps.core.audit import registrar
-from apps.core.graficos import grafico, serie
 from apps.core.middleware import SESSAO_ATUANDO
 from apps.core.mixins import AdminGeralMixin
 from apps.core.models import Integradora, LogAuditoria
@@ -59,27 +59,27 @@ class VisaoView(AdminGeralMixin, TemplateView):
             n_faturas=Fatura.objects.count(), n_faturas_div=Fatura.objects.filter(status=Fatura.Status.DIVERGENTE).count(),
             papeis=[(User.Papel(p).label, papeis.get(p, 0)) for p in User.Papel.values],
         )
+        maior_div = max((x["faturas_div"] for x in linhas), default=0) or 1
+        for x in linhas:
+            x["div_pct"] = int(x["faturas_div"] / maior_div * 100)
+        ctx["n_esp"] = sum(1 for m in medidores if m.provedor_api == "esp")
+        ctx.update(
+            hero_sub=f"{ctx['n_usinas']} usinas de {ctx['n_clientes']} clientes em {ctx['n_integradoras']} "
+                     f"integradora{'s' if ctx['n_integradoras'] != 1 else ''}",
+            clientes_txt=f"{ctx['n_clientes']} clientes · {ctx['n_ucs']} UCs",
+            faturas_txt=f"de {ctx['n_faturas']} faturas lidas",
+            inv_txt=f"de {ctx['n_inversores']}",
+            esp_txt=f"{ctx['esp_online']} ESP enviando agora",
+        )
         if linhas:
-            ordem = sorted(linhas, key=lambda x: -x["kwp"])
-            ctx["g_kwp"] = grafico([str(x["obj"]) for x in ordem], [serie("kWp", [x["kwp"] for x in ordem])],
-                                   unidade="kWp", horizontal=True, casas=1)
+            ctx["g_kwp"] = charts.ranking([{"nome": str(x["obj"]), "valor": x["kwp"]} for x in linhas], "kWp", 1)
         if inversores:
-            ctx["g_fab"] = g_monit.por_fabricante(Inversor.objects.prefetch_related("usina__inversores"))
-            ctx["g_conexao"] = grafico(["Inversores", "Medidores próprios"], [
-                serie("Conectados à fonte real", [conectados, sum(1 for m in medidores if m.provedor_api != "fake"
-                                                                   and (m.token_hash or m.credenciais))],
-                      papel="bom", pilha="s"),
-                serie("Demonstração / sem credencial", [len(inversores) - conectados,
-                                                        sum(1 for m in medidores if m.provedor_api == "fake")],
-                      papel="neutro", pilha="s"),
-            ], unidade="equipamentos", horizontal=True, empilhado=True)
+            ctx["g_fab"] = g_monit.rosca_fabricantes(Inversor.objects.prefetch_related("usina__inversores"))
         if sub:
-            itens = sorted(((k or "sem subgrupo", v) for k, v in sub.items()), key=lambda x: x[0])
-            ctx["g_sub"] = grafico([k for k, _ in itens], [serie("UCs", [v for _, v in itens])], unidade="UCs")
+            ctx["g_sub"] = charts.ranking([{"nome": k or "sem subgrupo", "valor": v} for k, v in sub.items()], "")
         if enq:
-            itens = sorted(((k or "não informado", v) for k, v in enq.items()))
-            ctx["g_enq"] = grafico([k for k, _ in itens], [serie("Usinas", [v for _, v in itens])], unidade="usinas",
-                                   tipo="rosca")
+            ctx["g_enq"] = charts.rosca([{"nome": k or "não informado", "valor": v}
+                                         for k, v in sorted(enq.items(), key=lambda x: -x[1])], "usinas")
         return ctx
 
 

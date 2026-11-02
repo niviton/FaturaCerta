@@ -1,12 +1,15 @@
 import datetime
-from collections import OrderedDict
 from decimal import Decimal
 
-from django.db.models import Sum
+from django.db.models import Count, Sum
+from django.db.models.functions import TruncMonth
+from django.urls import reverse
 from django.utils import timezone
+from django.utils.formats import number_format
 from django.views.generic import TemplateView
 
-from apps.cadastro.models import Cliente, Inversor, Medidor, Usina
+from apps.analise import graficos as g_analise
+from apps.cadastro.models import Cliente, Inversor, UnidadeConsumidora, Usina
 from apps.core.mixins import EquipeIntegradoraMixin
 from apps.faturas.models import Fatura
 
@@ -14,7 +17,14 @@ from . import graficos, services, tasks
 from .models import GeracaoDiaria
 from .services import ATENCAO, ORDEM_SITUACAO
 
-FILTROS = OrderedDict([("todas", "Todas"), ("atencao", "Precisam de atenção"), ("gerando", "Gerando")])
+# filtros da lista de usinas: chave -> (rótulo, situações, tom do contador)
+FILTROS = {
+    "todas": ("Todas", None, None),
+    "ok": ("Normal", {"gerando", "noite"}, "ok"),
+    "abaixo": ("Abaixo do esperado", {"abaixo"}, "solar"),
+    "critico": ("Parada ou sem comunicação", {"parada", "sem_comunicacao"}, "danger"),
+    "atencao": ("Precisam de atenção", ATENCAO, None),  # usado pelos links da visão geral
+}
 
 
 def _usinas(tenant):
@@ -22,8 +32,12 @@ def _usinas(tenant):
             .prefetch_related("inversores__status_atual"))
 
 
+def _pct(g, e):
+    return None if not e else int(g / e * 100)
+
+
 class VisaoGeralView(EquipeIntegradoraMixin, TemplateView):
-    """Painel da integradora: carteira inteira em números e gráficos."""
+    """Painel da integradora: o que importa primeiro (energia não compensada e usinas com problema)."""
 
     template_name = "painel/visao.html"
 
@@ -31,9 +45,14 @@ class VisaoGeralView(EquipeIntegradoraMixin, TemplateView):
         ctx = super().get_context_data(**kw)
         t = self.request.tenant
         usinas = list(_usinas(t))
-        resumos = [services.resumir_usina(u, 7) for u in usinas]
+        resumos = [services.resumir_usina(u, 30) for u in usinas]
         hoje = timezone.localdate()
         inicio_mes = hoje.replace(day=1)
+
+        # séries diárias da carteira (30 dias) para as sparklines
+        d30 = services.serie_diaria(usinas, hoje - datetime.timedelta(days=30), hoje - datetime.timedelta(days=1))
+        serie_30 = [d30.get(hoje - datetime.timedelta(days=k), 0) for k in range(30, 0, -1)]
+        curva = services.curva_do_dia(usinas, hoje)
         mes_kwh = GeracaoDiaria.objects.filter(inversor__usina__in=usinas, data__gte=inicio_mes).aggregate(
             s=Sum("kwh"))["s"] or Decimal(0)
         mes_esp = Decimal(0)
@@ -41,36 +60,53 @@ class VisaoGeralView(EquipeIntegradoraMixin, TemplateView):
         while dia <= hoje:
             mes_esp += sum((services.esperado_no_dia(u, dia) or Decimal(0) for u in usinas), Decimal(0))
             dia += datetime.timedelta(days=1)
+
         faturas = Fatura.objects.da_integradora(t)
-        ultimo_mes = faturas.order_by("-mes_referencia").values_list("mes_referencia", flat=True).first()
+        div_por_mes = dict(faturas.filter(status=Fatura.Status.DIVERGENTE).annotate(m=TruncMonth("mes_referencia"))
+                           .values("m").annotate(n=Count("id")).values_list("m", "n"))
+        meses = services.ultimos_meses(12)
+        ucs = UnidadeConsumidora.objects.da_integradora(t).select_related("concessionaria", "cliente").prefetch_related(
+            "usinas__inversores", "medidores")
+        cart = g_analise.carteira(list(ucs))
+        perdido = cart["perdido_kwh"]
+
+        contagem = {k: sum(1 for r in resumos if (s is None or r.situacao in s)) for k, (_, s, _) in FILTROS.items()}
         ctx.update(
             n_clientes=Cliente.objects.da_integradora(t).filter(ativo=True).count(),
-            n_usinas=len(usinas),
-            kwp=sum((u.potencia_kwp or 0 for u in usinas), Decimal(0)),
+            n_usinas=len(usinas), kwp=sum((u.potencia_kwp or 0 for u in usinas), Decimal(0)),
             potencia=sum((r.potencia_kw for r in resumos), Decimal(0)),
             hoje_kwh=sum((r.hoje_kwh for r in resumos), Decimal(0)),
-            mes_kwh=mes_kwh, mes_pct=int(mes_kwh / mes_esp * 100) if mes_esp else None,
+            mes_kwh=mes_kwh, mes_pct=_pct(mes_kwh, mes_esp),
+            serie_30=serie_30, serie_curva=[kw for _, kw in curva][-24:],
+            serie_div=[div_por_mes.get(m, 0) for m in meses],
             atencao=sorted([r for r in resumos if r.situacao in ATENCAO], key=lambda r: ORDEM_SITUACAO[r.situacao]),
-            gerando=sum(r.situacao == "gerando" for r in resumos),
-            faturas_div=faturas.filter(status=Fatura.Status.DIVERGENTE).select_related("uc__cliente")[:8],
+            faturas_div=faturas.filter(status=Fatura.Status.DIVERGENTE).select_related("uc__cliente")
+            .order_by("-mes_referencia")[:6],
             n_faturas_div=faturas.filter(status=Fatura.Status.DIVERGENTE).count(),
-            n_faturas_mes=faturas.filter(mes_referencia=ultimo_mes).count() if ultimo_mes else 0,
-            ultimo_mes=ultimo_mes,
-            n_medidores=Medidor.objects.filter(uc__integradora=t).count(),
+            perdido_kwh=perdido, perdido_rs=(perdido * cart["tarifa"]) if cart["tarifa"] else None,
+            n_ucs_div=sum(1 for b in cart["ultimos"] if g_analise.partes_injecao(b)[2] > 0),
+            filtros=[{"rotulo": FILTROS[k][0], "valor": k, "contador": contagem[k], "tom": FILTROS[k][2],
+                      "url": reverse("monitoramento:painel") + f"?filtro={k}"}
+                     for k in ("todas", "ok", "abaixo", "critico")],
             demo=any(r.demo for r in resumos),
+            g_sankey=cart["sankey"], g_injetado=cart["injetado"], g_mapa=graficos.mapa_usinas(resumos),
+        )
+        n_div = ctx["n_ucs_div"]
+        ctx.update(
+            hero_sub=f"{number_format(perdido, 0, force_grouping=True)} kWh sem compensação em {n_div} "
+                     f"UC{'s' if n_div != 1 else ''}. Estimativa pela tarifa de referência.",
+            hero_url=reverse("faturas:lista") + "?status=divergente",
+            mes_pct_txt=f"{ctx['mes_pct']}%" if ctx["mes_pct"] is not None else "",
         )
         if usinas:
-            ctx["g_diario"] = graficos.geracao_diaria(usinas, 30, por_usina=False)
-            ctx["g_mensal"] = graficos.geracao_mensal(usinas)
-            ctx["g_curva"] = graficos.curva_hoje(usinas)
-            ctx["g_desemp"] = graficos.desempenho_usinas(resumos)
-            ctx["g_fab"] = graficos.por_fabricante(Inversor.objects.filter(usina__in=usinas).prefetch_related(
+            ctx["g_geracao"] = graficos.geracao_x_esperado(usinas)
+            ctx["g_fab"] = graficos.rosca_fabricantes(Inversor.objects.filter(usina__in=usinas).prefetch_related(
                 "usina__inversores"))
         return ctx
 
 
 class PainelView(EquipeIntegradoraMixin, TemplateView):
-    """Todas as usinas da integradora, agrupadas por cliente, de qualquer fabricante."""
+    """Lista de usinas: todas as marcas, situação, potência agora e desempenho, com filtro por situação."""
 
     template_name = "monitoramento/painel.html"
 
@@ -85,32 +121,37 @@ class PainelView(EquipeIntegradoraMixin, TemplateView):
 
     def get_context_data(self, **kw):
         ctx = super().get_context_data(**kw)
-        resumos = [services.resumir_usina(u) for u in _usinas(self.request.tenant)]
+        resumos = []
+        for u in _usinas(self.request.tenant):
+            r = services.resumir_usina(u, 30)
+            gerado = sum((g for _, g, _ in r.ultimos_dias), Decimal(0))
+            esperado = sum((e or 0 for _, _, e in r.ultimos_dias), Decimal(0))
+            r.pct_30 = _pct(gerado, esperado)
+            r.serie_14 = [g for _, g, _ in r.ultimos_dias[-14:]]
+            resumos.append(r)
 
         filtro = self.request.GET.get("filtro", "todas")
+        if filtro not in FILTROS:
+            filtro = "todas"
+        situacoes = FILTROS[filtro][1]
         q = self.request.GET.get("q", "").strip().lower()
-        visiveis = resumos
-        if filtro == "atencao":
-            visiveis = [r for r in resumos if r.situacao in ATENCAO]
-        elif filtro == "gerando":
-            visiveis = [r for r in resumos if r.situacao == "gerando"]
+        visiveis = [r for r in resumos if situacoes is None or r.situacao in situacoes]
         if q:
             visiveis = [r for r in visiveis if q in r.usina.nome.lower() or q in str(r.usina.cliente).lower()
                         or any(q in m.lower() for m in r.marcas)]
+        visiveis.sort(key=lambda r: (ORDEM_SITUACAO[r.situacao], str(r.usina.cliente), r.usina.nome))
 
-        grupos = OrderedDict()
-        for r in sorted(visiveis, key=lambda r: (str(r.usina.cliente), ORDEM_SITUACAO[r.situacao], r.usina.nome)):
-            grupos.setdefault(r.usina.cliente, []).append(r)
-
+        contagem = {k: sum(1 for r in resumos if (s is None or r.situacao in s)) for k, (_, s, _) in FILTROS.items()}
         ctx.update(
-            grupos=grupos, filtros=FILTROS, filtro=filtro, q=self.request.GET.get("q", ""), total=len(resumos),
-            gerando=sum(r.situacao == "gerando" for r in resumos),
-            atencao=sum(r.situacao in ATENCAO for r in resumos),
-            paradas=sum(r.situacao in ("parada", "sem_comunicacao") for r in resumos),
+            linhas=visiveis, filtro=filtro, q=self.request.GET.get("q", ""), total=len(resumos),
+            filtros=[{"rotulo": FILTROS[k][0], "valor": k, "contador": contagem[k], "tom": FILTROS[k][2]}
+                     for k in ("todas", "ok", "abaixo", "critico")],
             potencia=sum((r.potencia_kw for r in resumos), Decimal(0)),
             energia_hoje=sum((r.hoje_kwh for r in resumos), Decimal(0)),
             kwp=sum((r.usina.potencia_kwp or 0 for r in resumos), Decimal(0)),
             demo=any(r.demo for r in resumos),
             marcas=sorted({m for r in resumos for m in r.marcas}),
+            n_clientes=len({r.usina.uc_geradora.cliente_id for r in resumos}),
         )
+        ctx["kwp_txt"] = f"de {number_format(ctx['kwp'], 1, force_grouping=True)} kWp instalados"
         return ctx

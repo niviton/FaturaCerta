@@ -35,7 +35,9 @@
       fonte: v("--font") || "Geist, sans-serif"
     };
   }
-  function tom(t, nome) { return { solar: t.solar, ok: t.ok, brand: t.brand, danger: t.danger, accent: t.accent }[nome] || t.brand; }
+  function tom(t, nome) {
+    return { solar: t.solar, ok: t.ok, brand: t.brand, danger: t.danger, accent: t.accent, neutro: t.cat[5] }[nome] || t.brand;
+  }
   function rgba(hex, a) {
     if (!hex || hex[0] !== "#") return hex;
     var h = hex.length === 4 ? hex.replace(/#(.)(.)(.)/, "#$1$1$2$2$3$3") : hex;
@@ -177,7 +179,7 @@
     });
     return Object.assign(base(t, d), {
       legend: { top: 0, right: 0, icon: "roundRect", itemWidth: 10, itemHeight: 10, textStyle: { color: t.muted } },
-      grid: { left: 8, right: 12, top: 44, bottom: 4, containLabel: true },
+      grid: { left: 8, right: 36, top: 52, bottom: 4, containLabel: true },
       tooltip: Object.assign(base(t, d).tooltip, { axisPointer: { type: "shadow", shadowStyle: { color: rgba(t.text, 0.04) } },
         formatter: function (ps) { var i = ps[0].dataIndex;
           return linhasTooltip(d, ps) + (destacar[i] ? "<div style='color:" + t.danger + ";margin-top:6px'>Perdido: " + destacar[i] + "</div>" : ""); } }),
@@ -186,7 +188,8 @@
   }
 
   /* ---------------------------------------------------------------- 4. cascata */
-  function cascata(t, d) {
+  function cascata(t, d, el) {
+    var estreito = el && el.clientWidth < 520;
     var acumulado = 0, invisivel = [], visivel = [], cores = [], rotulos = [];
     d.itens.forEach(function (it, i) {
       rotulos.push(it.curto || it.rotulo);
@@ -205,13 +208,14 @@
           var sinal = it.tipo === "menos" ? "− " : it.tipo === "mais" ? "+ " : "";
           return "<b>" + it.rotulo + "</b><br>" + sinal + fmt(d, it.valor); } }),
       grid: { left: 8, right: 12, top: 30, bottom: 4, containLabel: true },
-      xAxis: eixoCat(t, rotulos, { axisLabel: { color: t.muted, fontSize: 11, interval: 0, width: 70, overflow: "break", lineHeight: 14 } }),
+      xAxis: eixoCat(t, rotulos, { axisLabel: { color: t.muted, fontSize: estreito ? 9 : 11, interval: 0, rotate: estreito ? 35 : 0,
+        width: estreito ? 64 : 70, overflow: estreito ? "truncate" : "break", lineHeight: 14 } }),
       yAxis: eixoValor(t, d, { axisLabel: { color: t.muted, fontSize: 11, formatter: function (v) { return "R$ " + num(v, 0); } } }),
       series: [
         { name: "_base", type: "bar", stack: "c", data: invisivel, itemStyle: { color: "transparent" }, silent: true, barMaxWidth: 46 },
         { name: "Valor", type: "bar", stack: "c", barMaxWidth: 46,
           data: visivel.map(function (v, i) { return { value: v, itemStyle: { color: grad(cores[i], 1, 0.55), borderRadius: 6 } }; }),
-          label: { show: true, position: "top", color: t.text, fontSize: 11, fontWeight: 600,
+          label: { show: true, position: "top", color: t.text, fontSize: estreito ? 9 : 11, fontWeight: 600,
             formatter: function (p) { var it = d.itens[p.dataIndex];
               return (it.tipo === "menos" ? "−" : it.tipo === "mais" ? "+" : "") + "R$ " + num(it.valor, 0); } } }
       ]
@@ -221,19 +225,24 @@
   /* ---------------------------------------------------------------- 5. anéis de desempenho */
   function aneis(t, d, el) {
     var n = d.itens.length;
-    var fonte = el && el.clientWidth < 480 ? 14 : 18;
+    var largura = (el && el.clientWidth) || 600, altura = (el && el.clientHeight) || 200;
+    var colunas = largura / n >= 120 ? n : Math.min(n, 2); // sem espaço, os anéis vão para 2 colunas
+    var linhas = Math.ceil(n / colunas);
+    var raio = Math.max(Math.min(largura / colunas / 2 - 14, altura / linhas / 2 - 22, 64), 26);
+    var fonte = raio < 40 ? 13 : raio < 52 ? 16 : 18;
     return Object.assign(base(t, d), {
       tooltip: { show: false },
       series: d.itens.map(function (it, i) {
         var c = it.pct >= 85 ? t.ok : it.pct >= 60 ? t.solar : t.danger;
+        var col = i % colunas, lin = Math.floor(i / colunas);
         return {
-          type: "gauge", startAngle: 90, endAngle: -270, min: 0, max: 100, radius: "34%",
-          center: [((i + 0.5) / n * 100) + "%", "46%"], pointer: { show: false },
+          type: "gauge", startAngle: 90, endAngle: -270, min: 0, max: 100, radius: raio,
+          center: [((col + 0.5) / colunas * 100) + "%", ((lin + 0.42) / linhas * 100) + "%"], pointer: { show: false },
           progress: { show: true, roundCap: true, width: 9,
             itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 1, 1, [{ offset: 0, color: rgba(c, 0.55) }, { offset: 1, color: c }]) } },
           axisLine: { roundCap: true, lineStyle: { width: 9, color: [[1, rgba(t.text, t.escuro ? 0.07 : 0.08)]] } },
           splitLine: { show: false }, axisTick: { show: false }, axisLabel: { show: false },
-          title: { show: true, offsetCenter: [0, "150%"], color: t.muted, fontSize: 12, fontFamily: t.fonte },
+          title: { show: true, offsetCenter: [0, raio + 14], color: t.muted, fontSize: 12, fontFamily: t.fonte },
           detail: { offsetCenter: [0, 0], fontSize: fonte, fontWeight: 650, color: t.text, fontFamily: t.fonte,
             formatter: function (v) { return num(v, 0) + "%"; } },
           data: [{ value: it.pct, name: it.rotulo }]
@@ -309,7 +318,7 @@
       yAxis: eixoCat(t, itens.map(function (i) { return i.nome; }), { axisLabel: { color: t.text, fontSize: 12, margin: 12 } }),
       series: [{ type: "bar", barMaxWidth: 18, barCategoryGap: "38%",
         data: itens.map(function (it, i) {
-          var c = it.tom ? tom(t, it.tom) : t.cat[(itens.length - 1 - i) % t.cat.length];
+          var c = it.cor || (it.tom ? tom(t, it.tom) : t.cat[(itens.length - 1 - i) % t.cat.length]);
           return { value: it.valor, itemStyle: { color: grad(c, 1, 0.45, true), borderRadius: [4, 8, 8, 4] } }; }),
         label: { show: true, position: "right", distance: 8, color: t.text, fontWeight: 600, fontSize: 12,
           formatter: function (p) { return fmt(d, p.value); } },
@@ -369,8 +378,68 @@
     });
   }
 
+  /* ---------------------------------------------------------------- formato genérico (apps/core/graficos.py)
+     rotulos + series [{nome, valores, papel, tipo: bar|line, pilha, tracejado, cores}] + horizontal/empilhado.
+     A cor segue o PAPEL do dado (geração, injeção...), nunca a posição. */
+  function corPapel(t, papel, i) {
+    var mapa = { geracao: t.solar, esperado: rgba(t.text, 0.55), injecao: t.brand, autoconsumo: t.ok, compensada: t.ok,
+                 rede: t.cat[3], carga: t.cat[5], fatura: t.cat[4], bom: t.ok, atencao: t.solar, critico: t.danger,
+                 neutro: t.muted };
+    return mapa[papel] || t.cat[i % t.cat.length];
+  }
+  function barras(t, d) {
+    if (d.horizontal) {
+      return ranking(t, { unidade: d.unidade, casas: d.casas, itens: d.rotulos.map(function (r, i) {
+        var s = d.series[0], c = s.cores ? s.cores[i] : s.papel;
+        return { nome: r, valor: s.valores[i], cor: corPapel(t, c, i) }; }) });
+    }
+    var multi = d.series.length > 1;
+    var series = d.series.map(function (s, i) {
+      var c = corPapel(t, s.papel, i);
+      if (s.tipo === "line") {
+        return { name: s.nome, type: "line", data: s.valores, smooth: s.tracejado ? false : 0.3, symbol: "none", z: 5,
+          step: s.tracejado ? "middle" : false,
+          lineStyle: { color: c, width: s.tracejado ? 1.5 : 2.5, type: s.tracejado ? "dashed" : "solid" }, itemStyle: { color: c } };
+      }
+      return { name: s.nome, type: "bar", data: s.valores, stack: s.pilha || undefined, barMaxWidth: d.empilhado ? 22 : 16,
+        barGap: "25%", itemStyle: { color: grad(c, 1, d.empilhado ? 0.7 : 0.35), borderRadius: d.empilhado ? 0 : [6, 6, 2, 2] },
+        emphasis: { focus: "series" } };
+    });
+    if (d.empilhado) { // arredonda só o topo da pilha
+      var ultimas = series.filter(function (s) { return s.type === "bar"; });
+      if (ultimas.length) ultimas[ultimas.length - 1].itemStyle.borderRadius = [6, 6, 0, 0];
+    }
+    return Object.assign(base(t, d), {
+      legend: { show: multi, top: 0, right: 0, icon: "roundRect", itemWidth: 10, itemHeight: 10, textStyle: { color: t.muted } },
+      grid: { left: 8, right: 12, top: multi ? 44 : 24, bottom: 4, containLabel: true },
+      tooltip: Object.assign(base(t, d).tooltip, { axisPointer: { type: "shadow", shadowStyle: { color: rgba(t.text, 0.04) } },
+        formatter: function (ps) { return linhasTooltip(d, ps); } }),
+      xAxis: eixoCat(t, d.rotulos), yAxis: eixoValor(t, d, d.unidade === "R$" ?
+        { axisLabel: { color: t.muted, fontSize: 11, formatter: function (v) { return "R$ " + num(v, 0); } } } : undefined),
+      series: series
+    });
+  }
+  function area(t, d) {
+    var s = d.series[0], c = corPapel(t, s.papel, 0);
+    return Object.assign(base(t, d), {
+      grid: { left: 8, right: 12, top: 16, bottom: 4, containLabel: true },
+      tooltip: Object.assign(base(t, d).tooltip, { formatter: function (ps) { return linhasTooltip(d, ps); } }),
+      xAxis: eixoCat(t, d.rotulos, { boundaryGap: false }), yAxis: eixoValor(t, d),
+      series: [{ name: s.nome, type: "line", data: s.valores, smooth: 0.4, symbol: "none",
+        lineStyle: { color: c, width: 2.5 }, areaStyle: { color: grad(c, 0.35, 0) } }]
+    });
+  }
+  function roscaGenerica(t, d) {
+    if (!d.itens) {
+      d = Object.assign({}, d, { centro: d.centro || d.unidade, itens: d.rotulos.map(function (r, i) {
+        return { nome: r, valor: d.series[0].valores[i] }; }) });
+    }
+    return rosca(t, d);
+  }
+
   var DESENHOS = { sankey: sankey, geracao: geracao, barras_agrupadas: barrasAgrupadas, cascata: cascata, aneis: aneis,
-                   calendario: calendario, rosca: rosca, ranking: ranking, bullet: bullet, gauge: gauge };
+                   calendario: calendario, rosca: roscaGenerica, ranking: ranking, bullet: bullet, gauge: gauge,
+                   barras: barras, area: area };
 
   /* ---------------------------------------------------------------- 11. mapa (Leaflet) */
   function mapa(el, d) {
@@ -435,7 +504,7 @@
     var obs = new ResizeObserver(function () {
       g.resize();
       // gráficos que mudam de forma conforme a largura (calendário, fluxo, anéis) são redesenhados
-      if (Math.abs(el.clientWidth - largura) > 40 && ["calendario", "sankey", "aneis"].indexOf(d.tipo) >= 0) {
+      if (Math.abs(el.clientWidth - largura) > 40 && ["calendario", "sankey", "aneis", "cascata"].indexOf(d.tipo) >= 0) {
         largura = el.clientWidth;
         g.setOption(desenhar(tokens(), d, el), true);
       }
@@ -471,7 +540,9 @@
   });
 
   document.addEventListener("DOMContentLoaded", function () { montarTodos(); });
-  document.addEventListener("fc:tema", function () { instancias.forEach(function (_, el) { montar(el); }); });
+  // Redesenha numa CÓPIA da lista: montar() remove e recoloca o gráfico no Map, e um forEach direto
+  // visitaria de novo cada item recolocado, para sempre (a página congelava ao trocar o tema).
+  document.addEventListener("fc:tema", function () { Array.from(instancias.keys()).forEach(montar); });
   document.addEventListener("htmx:beforeSwap", function (e) {
     instancias.forEach(function (_, el) { if (e.detail.target.contains(el)) destruir(el); });
   });

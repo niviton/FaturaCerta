@@ -31,21 +31,25 @@ def rotulo_mes(d: datetime.date) -> str:
 
 
 # ------------------------------------------------------------------ 1. fluxo de energia
-def sankey(gerado, instantaneo, injetado, compensado, nao_compensado, unidade="kWh"):
-    """Gerado → consumo instantâneo / injetado → compensado / não compensado."""
+def sankey(gerado, instantaneo, injetado, compensado, nao_compensado, credito=0, unidade="kWh"):
+    """Gerado → consumo instantâneo / injetado → compensado, virou crédito ou não compensado (sem explicação)."""
     nos = [{"nome": "Gerado", "tom": "solar"}, {"nome": "Consumo instantâneo", "tom": "ok"},
-           {"nome": "Injetado na rede", "tom": "brand"}, {"nome": "Compensado", "tom": "ok"},
-           {"nome": "Não compensado", "tom": "danger"}]
+           {"nome": "Injetado na rede", "tom": "brand"}]
     links = [{"de": "Gerado", "para": "Consumo instantâneo", "valor": _n(instantaneo)},
-             {"de": "Gerado", "para": "Injetado na rede", "valor": _n(injetado)},
-             {"de": "Injetado na rede", "para": "Compensado", "valor": _n(compensado)}]
+             {"de": "Gerado", "para": "Injetado na rede", "valor": _n(injetado)}]
+    if compensado and compensado > 0:  # nó com zero vira um risco espremido no desenho
+        nos.append({"nome": "Compensado", "tom": "ok"})
+        links.append({"de": "Injetado na rede", "para": "Compensado", "valor": _n(compensado)})
+    if credito and credito > 0:
+        nos.append({"nome": "Virou crédito", "tom": "neutro"})
+        links.append({"de": "Injetado na rede", "para": "Virou crédito", "valor": _n(credito)})
     if nao_compensado and nao_compensado > 0:
+        nos.append({"nome": "Não compensado", "tom": "danger"})
         links.append({"de": "Injetado na rede", "para": "Não compensado", "valor": _n(nao_compensado)})
-    else:
-        nos = nos[:-1]
     return {"tipo": "sankey", "unidade": unidade, "casas": 0, "nos": nos, "links": links,
             "tabela": _tabela(["kWh"], [["Gerado", _n(gerado)], ["Consumo instantâneo", _n(instantaneo)],
                                         ["Injetado", _n(injetado)], ["Compensado", _n(compensado)],
+                                        ["Virou crédito", _n(credito or 0)],
                                         ["Não compensado", _n(nao_compensado or 0)]])}
 
 

@@ -1,16 +1,30 @@
-{% extends "base_documento.html" %}
+{% extends "fc/documento.html" %}
+{% load fc %}
+{% block head %}
+{# marca branca: a cor da integradora vira o destaque do portal (texto em preto ou branco pelo contraste) #}
+{% if tenant.cor_marca %}<style>:root, [data-theme="light"] { --accent: {{ tenant.cor_marca }}; --accent-ink: {{ tenant.cor_marca|cor_texto }};
+  --accent-soft: color-mix(in srgb, {{ tenant.cor_marca }} 16%, transparent); }</style>{% endif %}
+{% endblock %}
 {% block corpo %}
-<div class="faixa-marca"></div>
 <header class="portal-topo">
-  <a class="marca" href="{% url 'portal:inicio' %}">{% if tenant.logo %}<img src="{{ tenant.logo.url }}" alt="">{% endif %}{{ tenant }}</a>
+  <a class="marca-port" href="{% url 'portal:inicio' %}">
+    {% if tenant.logo %}<img src="{{ tenant.logo.url }}" alt="">{% else %}<span class="avatar" style="background:var(--accent);color:var(--accent-ink);box-shadow:none">{{ tenant|iniciais }}</span>{% endif %}
+    {{ tenant }}
+  </a>
   <div class="direita">
-    <span class="secundario pequeno">{{ user.nome_exibicao }}</span>
-    <form method="post" action="{% url 'logout' %}" class="inline">{% csrf_token %}<button class="botao fantasma pequeno" type="submit">Sair</button></form>
+    {% include "components/tema_toggle.html" %}
+    <form method="post" action="{% url 'logout' %}" class="inline">{% csrf_token %}<button class="btn btn-fantasma btn-icone" type="submit" aria-label="Sair">{% icone "log-out" %}</button></form>
   </div>
 </header>
-<main class="portal" id="conteudo">{% block content %}{% endblock %}
-  <footer class="secundario pequeno" style="margin-top:2.5rem;border-top:1px solid var(--linha);padding-top:1rem">
-    Dúvidas? Fale com a {{ tenant }}{% if tenant.whatsapp %} pelo WhatsApp {{ tenant.whatsapp }}{% elif tenant.telefone_contato %} pelo {{ tenant.telefone_contato }}{% endif %}{% if tenant.email_contato %} ou {{ tenant.email_contato }}{% endif %}.
-  </footer>
+<main class="portal" id="conteudo">
+  {% block content %}{% endblock %}
+  <section id="ajuda" class="painel" style="margin-top:1.5rem">
+    <div style="display:flex;gap:.9rem;align-items:center">
+      <span class="kpi-icone" style="background:var(--accent-soft);color:var(--accent)">{% icone "info" %}</span>
+      <div><strong>Fale com a {{ tenant }}</strong>
+        <p class="muted small" style="margin:0">{% if tenant.whatsapp %}WhatsApp {{ tenant.whatsapp }}{% elif tenant.telefone_contato %}{{ tenant.telefone_contato }}{% endif %}{% if tenant.email_contato %} · {{ tenant.email_contato }}{% endif %}</p></div>
+    </div>
+  </section>
 </main>
+{% include "components/bottom_nav.html" with itens=nav %}
 {% endblock %}

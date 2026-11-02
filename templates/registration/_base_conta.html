@@ -1,0 +1,12 @@
+{% extends "fc/documento.html" %}
+{% block corpo %}
+<main class="login-form" id="conteudo" style="min-height:100vh;position:relative;z-index:1">
+  <div class="login-cartao">
+    <a class="marca" href="{% url 'login' %}" style="padding:0;margin-bottom:1.5rem">
+      <span class="marca-logo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z"/></svg></span>
+      <span class="marca-nome">FaturaCerta</span>
+    </a>
+    {% block cartao %}{% endblock %}
+  </div>
+</main>
+{% endblock %}

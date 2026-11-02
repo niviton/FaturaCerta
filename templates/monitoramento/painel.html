@@ -1,28 +1,28 @@
 {% extends "base.html" %}
-{% load humanize %}
-{% block title %}Usinas agora · FaturaCerta{% endblock %}
-{% block migalhas %}<span>Usinas agora</span>{% endblock %}
-{% block topo_acoes %}{% if demo %}{% include "componentes/selo_demo.html" %}{% endif %}
+{% load fc %}
+{% block title %}Usinas · FaturaCerta{% endblock %}
+{% block migalhas %}<span>{{ tenant }}</span>{% icone "chevron-right" %}<span>Usinas</span>{% endblock %}
+{% block topo_acoes %}{% if demo %}{% include "components/selo_demo.html" %}{% endif %}
   <form method="post" hx-post="{% url 'monitoramento:painel' %}?{{ request.GET.urlencode }}" hx-target="#lista" hx-swap="outerHTML" class="inline">{% csrf_token %}
-    <button class="botao pequeno" type="submit"><svg aria-hidden="true"><use href="#i-atualizar"/></svg>Atualizar agora</button></form>{% endblock %}
+    <button class="btn btn-p" type="submit">{% icone "refresh-cw" "i-sm" %}Atualizar agora</button></form>{% endblock %}
 {% block content %}
-<div class="cab">
-  <div><h1>Usinas agora</h1><p>{{ total }} usina{{ total|pluralize }} de {{ grupos|length }} cliente{{ grupos|length|pluralize }}{% if marcas %}, {{ marcas|length }} fabricante{{ marcas|length|pluralize }}: {{ marcas|join:", " }}{% endif %}. Atualiza sozinho a cada minuto.</p></div>
+<div class="pagina-cab">
+  <div><h1>Usinas</h1>
+    <p>{{ total }} usina{{ total|pluralize }} de {{ n_clientes }} cliente{{ n_clientes|pluralize }}{% if marcas %} · {{ marcas|join:", " }}{% endif %}. Atualiza sozinho a cada minuto.</p></div>
 </div>
 
-<div class="kpis">
-  <div class="kpi energia"><span class="kpi-rotulo">Potência agora</span><span class="kpi-valor">{{ potencia|floatformat:1 }}<small>kW</small></span><span class="kpi-rodape">de {{ kwp|floatformat:0 }} kWp instalados</span></div>
-  <div class="kpi"><span class="kpi-rotulo">Gerado hoje</span><span class="kpi-valor">{{ energia_hoje|floatformat:0|intcomma }}<small>kWh</small></span><span class="kpi-rodape">todas as usinas</span></div>
-  <div class="kpi"><span class="kpi-rotulo">Gerando normalmente</span><span class="kpi-valor">{{ gerando }}<small>/ {{ total }}</small></span><span class="kpi-rodape">usinas</span></div>
-  <div class="kpi {% if atencao %}alerta{% endif %}"><span class="kpi-rotulo">Precisam de atenção</span><span class="kpi-valor">{{ atencao }}</span><span class="kpi-rodape">{% if paradas %}{{ paradas }} parada{{ paradas|pluralize }} ou sem comunicação{% else %}nenhuma parada{% endif %}</span></div>
+<div class="kpis" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
+  {% include "components/kpi_card.html" with rotulo="Potência agora" icone="zap" valor=potencia casas=1 unidade="kW" estado="energia" rodape=kwp_txt %}
+  {% include "components/kpi_card.html" with rotulo="Gerado hoje" icone="sun" valor=energia_hoje unidade="kWh" estado="solar" rodape="todas as usinas" %}
+  {% for f in filtros %}{% if f.valor == "critico" %}
+  {% include "components/kpi_card.html" with rotulo="Paradas ou sem comunicação" icone="triangle-alert" valor=f.contador estado="danger" rodape="precisam de visita ou contato" %}
+  {% endif %}{% endfor %}
 </div>
 
-<form class="filtros" style="margin-top:1.25rem" method="get" hx-get="{% url 'monitoramento:painel' %}" hx-target="#lista" hx-swap="outerHTML" hx-push-url="true" hx-trigger="change, submit, keyup changed delay:300ms from:#q">
-  <fieldset class="segmentos"><legend class="sr">Filtrar usinas</legend>
-    {% for chave, nome in filtros.items %}<label class="segmento"><input type="radio" name="filtro" value="{{ chave }}" {% if chave == filtro %}checked{% endif %}> {{ nome }}</label>{% endfor %}
-  </fieldset>
-  <label class="sr" for="q">Buscar</label>
-  <input type="search" id="q" name="q" value="{{ q }}" placeholder="Cliente, usina ou fabricante">
+<form class="filtros" style="margin-top:1.5rem" method="get" hx-get="{% url 'monitoramento:painel' %}" hx-target="#lista" hx-swap="outerHTML"
+      hx-push-url="true" hx-trigger="change, submit, keyup changed delay:300ms from:#q">
+  {% include "components/filter_tabs.html" with itens=filtros nome="filtro" atual=filtro rotulo_grupo="Situação das usinas" %}
+  <label class="busca"><span class="sr-only">Buscar</span>{% icone "search" %}<input type="search" id="q" name="q" value="{{ q }}" placeholder="Cliente, usina ou fabricante"></label>
 </form>
 
 {% include "monitoramento/_lista.html" %}

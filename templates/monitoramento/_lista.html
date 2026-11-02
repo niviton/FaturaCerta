@@ -1,34 +1,41 @@
-{% load graficos %}
-<div id="lista" hx-get="{% url 'monitoramento:painel' %}?{{ request.GET.urlencode }}" hx-trigger="every 60s" hx-swap="outerHTML">
-{% for cliente, resumos in grupos.items %}
-  <section class="painel cliente-bloco" aria-labelledby="cli-{{ cliente.pk }}">
-    <header class="cliente-cab">
-      <h2 id="cli-{{ cliente.pk }}"><a href="{% url 'cadastro:cliente' cliente.pk %}">{{ cliente }}</a></h2>
-      <span class="secundario pequeno">{{ resumos|length }} usina{{ resumos|length|pluralize }} · {{ cliente.get_segmento_display }}</span>
-    </header>
-    <ul class="usinas">
-    {% for r in resumos %}
-      <li class="usina-linha s-{{ r.situacao }}">
-        <div class="usina-id">
-          <span class="luz" aria-hidden="true"></span>
-          <div>
-            <a class="usina-nome" href="{% url 'cadastro:usina' r.usina.pk %}">{{ r.usina.nome }}</a>
-            <span class="secundario">{{ r.marcas|join:" + "|default:"sem inversor" }}{% if r.usina.potencia_kwp %} · {{ r.usina.potencia_kwp|floatformat:1 }} kWp{% endif %}{% if r.usina.enquadramento %} · {{ r.usina.enquadramento }}{% endif %}</span>
+{% load fc humanize %}
+<section class="painel" id="lista" hx-get="{% url 'monitoramento:painel' %}?{{ request.GET.urlencode }}" hx-trigger="every 60s" hx-swap="outerHTML">
+  {% if linhas %}
+  <div class="tabela-caixa" style="margin-top:-1.25rem;--tabela-altura:calc(100vh - 220px)">
+    <table class="tabela">
+      <caption class="sr-only">Usinas e situação agora</caption>
+      <thead><tr><th scope="col">Usina</th><th scope="col">Situação</th><th scope="col" class="num">Agora</th>
+        <th scope="col">Hoje</th><th scope="col">Desempenho</th><th scope="col">14 dias</th></tr></thead>
+      <tbody>
+      {% for r in linhas %}
+      <tr data-href="{% url 'cadastro:usina' r.usina.pk %}" class="s-{{ r.situacao }}">
+        <td>
+          <div style="display:flex;gap:.75rem;align-items:center">
+            <span class="kpi-icone" style="flex:none;{% if r.situacao == 'gerando' %}background:var(--solar-soft);color:var(--solar){% endif %}">{% icone "sun" %}</span>
+            <div style="min-width:0"><a class="principal-col" href="{% url 'cadastro:usina' r.usina.pk %}" style="color:var(--text)">{{ r.usina.nome }}</a>
+              <span class="sub">{{ r.usina.cliente }} · {{ r.marcas|join:" + "|default:"sem inversor" }}</span></div>
           </div>
-        </div>
-        <div><span class="situacao">{{ r.rotulo }}</span></div>
-        <div class="usina-num"><span class="valor">{{ r.potencia_kw|floatformat:1 }}</span> <span class="unid">kW</span></div>
-        <div class="usina-hoje">
-          <div><span class="valor">{{ r.hoje_kwh|floatformat:1 }}</span> <span class="unid">kWh hoje{% if r.esperado_hoje_kwh %} de {{ r.esperado_hoje_kwh|floatformat:0 }}{% endif %}</span></div>
-          {% if r.pct_hoje is not None %}<div class="medidor" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ r.pct_hoje }}" aria-label="Geração de hoje em relação ao esperado"><span style="width: {% if r.pct_hoje > 100 %}100{% else %}{{ r.pct_hoje }}{% endif %}%"></span></div>{% endif %}
-        </div>
-        <div class="usina-graf">{% barras_geracao r.ultimos_dias 280 40 True %}
-          {% if r.pct_7d is not None %}<span class="unid">14 dias · últimos 7 em {{ r.pct_7d }}% do esperado</span>{% endif %}</div>
-      </li>
-    {% endfor %}
-    </ul>
-  </section>
-{% empty %}
-  <div class="vazio"><p>Nenhuma usina neste filtro.</p>{% if total == 0 %}<a class="botao principal" href="{% url 'cadastro:clientes' %}">Cadastrar cliente e usina</a>{% endif %}</div>
-{% endfor %}
-</div>
+        </td>
+        <td>
+          {% if r.situacao == "gerando" %}{% include "components/status_pill.html" with tom="ok" texto=r.rotulo %}
+          {% elif r.situacao == "abaixo" %}{% include "components/status_pill.html" with tom="solar" texto=r.rotulo %}
+          {% elif r.situacao == "parada" or r.situacao == "sem_comunicacao" %}{% include "components/status_pill.html" with tom="danger" texto=r.rotulo %}
+          {% else %}{% include "components/status_pill.html" with texto=r.rotulo %}{% endif %}
+          {% if r.atualizado_em %}<span class="sub">leitura {{ r.atualizado_em|naturaltime }}</span>{% endif %}
+        </td>
+        <td class="num"><span style="font-weight:650">{{ r.potencia_kw|ptbr:1 }}</span> <span class="muted small">kW</span>
+          <span class="sub">{{ r.usina.potencia_kwp|ptbr:1 }} kWp</span></td>
+        <td style="min-width:150px"><span style="font-weight:600" class="num">{{ r.hoje_kwh|ptbr:1 }}</span> <span class="muted small">kWh{% if r.esperado_hoje_kwh %} de {{ r.esperado_hoje_kwh|ptbr:0 }}{% endif %}</span>
+          {% if r.pct_hoje is not None %}<div class="medidor" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ r.pct_hoje }}" aria-label="Hoje em relação ao esperado"><span style="width:{% if r.pct_hoje > 100 %}100{% else %}{{ r.pct_hoje }}{% endif %}%"></span></div>{% endif %}</td>
+        <td><div class="aneis-linha">{% anel r.pct_7d "7 dias" %}{% anel r.pct_30 "30 dias" %}</div></td>
+        <td style="width:150px">{% if r.serie_14 %}{% if r.situacao == "gerando" or r.situacao == "noite" %}{% sparkline r.serie_14 "solar" %}{% else %}{% sparkline r.serie_14 "danger" %}{% endif %}{% endif %}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  {% if total == 0 %}{% url 'cadastro:clientes' as url_cli %}{% include "components/empty_state.html" with icone="sun" titulo="Nenhuma usina ainda" texto="Cadastre um cliente e vincule o inversor para começar a monitorar." acao_url=url_cli acao_texto="Cadastrar cliente" %}
+  {% else %}{% include "components/empty_state.html" with icone="search" titulo="Nenhuma usina neste filtro" texto="Troque o filtro ou a busca." %}{% endif %}
+  {% endif %}
+</section>

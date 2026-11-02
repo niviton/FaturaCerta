@@ -1,32 +1,38 @@
-{% extends "base_documento.html" %}
+{% extends "fc/documento.html" %}
+{% load fc %}
 {% block title %}Entrar · FaturaCerta{% endblock %}
 {% block corpo %}
 <div class="login-tela">
   <section class="login-arte" aria-label="Sobre o FaturaCerta">
-    <a class="logo" href="#"><span class="logo-marca"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z" fill="#C8FF2E"/></svg></span><span><strong>FaturaCerta</strong></span></a>
+    <a class="marca" href="{% url 'login' %}">
+      <span class="marca-logo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z"/></svg></span>
+      <span class="marca-nome">FaturaCerta</span>
+    </a>
     <div>
       <h1>Cada kWh gerado, conferido na conta de luz.</h1>
-      <p class="secundario" style="margin-top:1rem">Monitoramento de usinas de todos os fabricantes e auditoria da fatura da concessionária, numa tela só, para integradoras de energia solar.</p>
+      <p class="login-sub">Monitoramento de usinas de todos os fabricantes e auditoria da fatura da concessionária, numa tela só, para integradoras de energia solar.</p>
     </div>
-    <div class="linha-fontes">
-      <div><strong>Inversor</strong>Quanto a usina gerou, pela API de cada fabricante.</div>
-      <div><strong>Medidor próprio</strong>O que entra e sai da rede, medido pelo nosso ESP.</div>
-      <div><strong>Concessionária</strong>O que foi medido e cobrado na fatura.</div>
+    <div class="fluxo-mini" aria-label="As três fontes que o sistema cruza">
+      <div class="no"><span class="no-icone">{% icone "sun" %}</span><strong>Inversor</strong><span>quanto a usina gerou, pela API de cada fabricante</span></div>
+      <div class="no"><span class="no-icone">{% icone "gauge" %}</span><strong>Medidor próprio</strong><span>o que entrou e saiu da rede, medido pelo nosso ESP</span></div>
+      <div class="no"><span class="no-icone">{% icone "receipt" %}</span><strong>Concessionária</strong><span>o que foi medido e cobrado na fatura</span></div>
     </div>
   </section>
   <main class="login-form" id="conteudo">
-    <form method="post">
+    <form method="post" class="login-cartao" novalidate>
       {% csrf_token %}
       <h2>Entrar</h2>
-      <p class="secundario">Use o login fornecido pela sua integradora.</p>
+      <p class="muted" style="margin-bottom:1.25rem">Use o login fornecido pela sua integradora.</p>
       {% if form.errors %}<p class="aviso" role="alert">Usuário ou senha incorretos. Confira e tente de novo.</p>{% endif %}
-      <div class="campo"><label for="id_username">Usuário</label>
-        <input type="text" name="username" id="id_username" autocomplete="username" required autofocus></div>
-      <div class="campo"><label for="id_password">Senha</label>
+      <div class="campo {% if form.errors %}invalido{% endif %}"><label for="id_username">Usuário</label>
+        <input type="text" name="username" id="id_username" autocomplete="username" required autofocus value="{{ form.username.value|default:'' }}"></div>
+      <div class="campo {% if form.errors %}invalido{% endif %}"><label for="id_password">Senha</label>
         <input type="password" name="password" id="id_password" autocomplete="current-password" required></div>
       <input type="hidden" name="next" value="{{ next }}">
-      <button type="submit" class="botao principal">Entrar</button>
+      <button type="submit" class="btn btn-primario">Entrar {% icone "arrow-up-right" "i-sm" %}</button>
+      <a class="esqueci" href="{% url 'password_reset' %}">Esqueci minha senha</a>
     </form>
   </main>
+  <div style="position:fixed;top:1rem;right:1rem;z-index:5">{% include "components/tema_toggle.html" %}</div>
 </div>
 {% endblock %}

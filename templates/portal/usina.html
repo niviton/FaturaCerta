@@ -1,13 +1,15 @@
 {% extends "portal/base_portal.html" %}
+{% load fc %}
 {% block title %}{{ usina.nome }} · {{ tenant }}{% endblock %}
 {% block content %}
-<p style="margin-top:1rem"><a href="{% url 'portal:inicio' %}">Início</a></p>
-<section class="heroi s-{{ resumo.situacao }}">
-  <p class="ola">{{ usina.nome }} · {{ usina.potencia_kwp|floatformat:1 }} kWp</p>
-  <p class="grande">{{ resumo.potencia_kw|floatformat:1 }}<small> kW agora</small></p>
-  <p><span class="situacao"><span class="luz" aria-hidden="true"></span>{{ resumo.rotulo }}</span> · {{ resumo.hoje_kwh|floatformat:1 }} kWh hoje{% if resumo.pct_7d is not None %} · {{ resumo.pct_7d }}% do esperado na semana{% endif %}</p>
-</section>
-{% if g_curva %}{% include "componentes/grafico.html" with id="g-curva" dados=g_curva titulo="Hoje" sub="Potência a cada 15 minutos." altura="baixo" %}{% endif %}
-<div style="margin-top:1rem">{% include "componentes/grafico.html" with id="g-diario" dados=g_diario titulo="Últimos 30 dias" sub="Linha tracejada: o esperado do projeto." %}</div>
-<div style="margin-top:1rem">{% include "componentes/grafico.html" with id="g-mensal" dados=g_mensal titulo="Últimos 12 meses" %}</div>
+<p style="margin:.5rem 0 1rem"><a href="{% url 'portal:inicio' %}">{% icone "chevrons-left" "i-sm" %} Início</a></p>
+<div class="pilha entra">
+  <div><h1>{{ usina.nome }}</h1><p class="muted" style="margin:.3rem 0 0">{{ usina.potencia_kwp|ptbr:1 }} kWp · {{ resumo.marcas|join:" + " }}</p></div>
+  {% include "components/hero_card.html" with rotulo="Potência agora" icone="zap" valor=resumo.potencia_kw casas=1 unidade="kW" sub=resumo.rotulo acento=True %}
+</div>
+<div class="grade g-2" style="margin-top:1rem">
+  {% if g_curva %}{% include "components/chart_panel.html" with id="g-curva" dados=g_curva titulo="Hoje" sub="Potência a cada 15 minutos." altura="220px" %}{% endif %}
+  {% if g_aneis %}{% include "components/chart_panel.html" with id="g-aneis" dados=g_aneis titulo="Desempenho" sub="Percentual do esperado do projeto." altura="220px" %}{% endif %}
+</div>
+<div style="margin-top:1rem">{% include "components/chart_panel.html" with id="g-ger" dados=g_geracao titulo="Geração × esperado" sub="A faixa cinza é o esperado do projeto." altura="280px" %}</div>
 {% endblock %}

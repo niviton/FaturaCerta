@@ -4,6 +4,7 @@ from django.db.models import Count, Prefetch, Q, Sum
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.formats import number_format
 from django.views import View
 from django.views.generic import CreateView, DetailView, ListView, TemplateView, UpdateView
 
@@ -244,9 +245,20 @@ class UCDetailView(TenantQuerysetMixin, AuditarVisualizacaoMixin, DetailView):
             if self.request.GET.get("fatura"):
                 sel = next((b for b in bal if b.fatura and str(b.fatura.pk) == self.request.GET["fatura"]), None)
             sel = sel or (bal[-1] if bal else None)
+            partes = g_analise.partes_injecao(sel) if sel else None
             ctx.update(balancos=bal, sel=sel, g_balanco=g_analise.balanco_energetico(bal),
                        g_inj=g_analise.injetado_compensado(bal), g_consumo=g_analise.consumo_tres_fontes(bal),
-                       g_custo=g_analise.custo(bal))
+                       g_custo=g_analise.custo(bal), g_sankey=g_analise.sankey_balanco(sel),
+                       g_cascata=g_analise.cascata_balanco(sel), conferencia=g_analise.conferencia(sel),
+                       nao_compensado=partes[2] if partes else None, credito=partes[1] if partes else None)
+            if sel:
+                def n(v):
+                    return number_format(v, 0, force_grouping=True)
+                ctx.update(
+                    desempenho_txt=f"{sel.desempenho}% do esperado" if sel.desempenho is not None else "sem esperado",
+                    nao_comp_txt=f"{n(partes[2])} kWh deixaram de ser compensados" if partes else "",
+                    credito_txt=(f"{n(partes[1])} kWh viraram crédito" if partes and partes[1] else "tudo compensado"),
+                )
         elif aba == "faturas":
             ctx["faturas"] = uc.faturas.all()
         elif aba == "perfil":
@@ -254,6 +266,9 @@ class UCDetailView(TenantQuerysetMixin, AuditarVisualizacaoMixin, DetailView):
         elif aba == "creditos":
             ctx["lotes"] = uc.lotes_credito.all()
             ctx["form_lote"] = LoteCreditoForm()
+        ctx["disp_txt"] = f"mínimo {uc.custo_disponibilidade_kwh} kWh" if uc.custo_disponibilidade_kwh else ""
+        ctx["demanda_txt"] = (f"demanda {number_format(uc.demanda_contratada_kw, 0)} kW"
+                              if uc.demanda_contratada_kw else "")
         return ctx
 
 
@@ -338,12 +353,19 @@ class UsinaDetailView(TenantQuerysetMixin, AuditarVisualizacaoMixin, DetailView)
         u = self.object
         r = resumir_usina(u, dias_grafico=30)
         mensal = g_monit.geracao_mensal([u])
+        total_12m = sum(v for v in mensal["series"][0]["valores"] if v)
+        esperado_12m = sum(v for v in (mensal["series"][1]["valores"] if len(mensal["series"]) > 1 else []) if v)
+        curva = g_monit.curva_hoje([u])
         ctx.update(
             resumo=r, inversores=list(u.inversores.all()), arranjos=list(u.arranjos.all()),
-            rateios=list(u.rateios.all()), medidores=list(u.medidores.all()),
-            g_curva=g_monit.curva_hoje([u]), g_diario=g_monit.geracao_diaria([u], 30), g_mensal=mensal,
-            total_12m=sum(v for v in mensal["series"][0]["valores"] if v),
-            esperado_12m=sum(v for v in (mensal["series"][1]["valores"] if len(mensal["series"]) > 1 else []) if v),
+            rateios=list(u.rateios.all()), medidores=list(u.uc_geradora.medidores.all()),
+            g_curva=curva, g_aneis=g_monit.aneis_usina([u]), g_geracao=g_monit.geracao_x_esperado([u]),
+            g_calendario=g_monit.calendario_usinas([u]),
+            serie_curva=curva["series"][0]["valores"][-24:] if curva else None,
+            serie_30=[g for _, g, _ in r.ultimos_dias],
+            total_12m=total_12m, esperado_12m=esperado_12m,
+            pct_12m=round(total_12m / esperado_12m * 100) if esperado_12m else None,
+            hero_estado={"gerando": "ok", "noite": "brand", "abaixo": "solar"}.get(r.situacao, "danger"),
             form_arranjo=ArranjoForm(),
         )
         return ctx

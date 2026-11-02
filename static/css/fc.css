@@ -162,7 +162,7 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .recolhido .shell .nav-item { justify-content: center; padding: 0; }
 .recolhido .shell .botao-recolher .i { transform: rotate(180deg); }
 
-.principal { min-width: 0; display: flex; flex-direction: column; }
+.area-principal { min-width: 0; display: flex; flex-direction: column; }
 .topbar { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: .75rem; min-height: 64px; padding: .75rem 2rem;
           background: color-mix(in srgb, var(--bg) 72%, transparent); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
           border-bottom: 1px solid var(--border); }
@@ -302,7 +302,7 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .filtro-tab[data-tom="danger"] .contador { color: var(--danger); }
 .busca { position: relative; flex: 1 1 240px; max-width: 340px; }
 .busca .i { position: absolute; left: .8rem; top: 50%; transform: translateY(-50%); color: var(--muted); }
-.busca input { padding-left: 2.4rem; border-radius: var(--r-pill); }
+.busca input[type=search] { padding-left: 2.4rem; border-radius: var(--r-pill); max-width: none; }
 
 /* ============================================================ tabela */
 .tabela-caixa { overflow: auto; margin: 0 -1.35rem -1.25rem; border-radius: 0 0 var(--r-panel) var(--r-panel); max-height: var(--tabela-altura, none); }

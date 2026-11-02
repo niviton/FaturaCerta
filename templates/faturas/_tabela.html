@@ -1,16 +1,24 @@
+{% load fc %}
 {% if faturas %}
-<section class="painel"><div class="tabela-caixa"><table class="itens">
-  <thead><tr><th>Mês</th><th>UC</th><th>Leitura</th><th class="num">Consumo</th><th class="num">Injetado</th><th class="num">Compensado</th><th class="num">Total</th><th>Situação</th><th></th></tr></thead>
+<section class="painel"><div class="tabela-caixa" style="margin-top:-1.25rem"><table class="tabela">
+  <caption class="sr-only">Faturas</caption>
+  <thead><tr><th scope="col">Mês</th><th scope="col">UC</th><th scope="col">Leitura</th><th scope="col" class="num">Consumo</th><th scope="col" class="num">Injetado</th>
+    <th scope="col" class="num">Compensado</th><th scope="col" class="num">Total</th><th scope="col">Situação</th><th scope="col"></th></tr></thead>
   <tbody>{% for f in faturas %}
-  <tr><td class="forte">{{ f.mes_referencia|date:"m/Y" }}</td>
-      <td><a href="{% url 'cadastro:uc' f.uc_id %}?aba=analise&fatura={{ f.pk }}">{{ f.uc }}</a><span class="sub">{{ f.uc.cliente }}</span></td>
-      <td>{{ f.data_leitura_anterior|date:"d/m" }} a {{ f.data_leitura_atual|date:"d/m" }}<span class="sub">{{ f.dias }} dias</span></td>
-      <td class="num">{{ f.consumo_kwh|floatformat:0 }} kWh</td><td class="num">{{ f.energia_injetada_kwh|floatformat:0 }} kWh</td>
-      <td class="num">{{ f.energia_compensada_kwh|floatformat:0 }} kWh</td><td class="num forte">R$ {{ f.valor_total|floatformat:2 }}</td>
-      <td>{% if f.status == "divergente" %}<span class="selo diverge">divergência</span>{% elif f.status == "conferida" %}<span class="selo confere">confere</span>{% elif f.status == "revisao" %}<span class="selo atencao">em revisão</span>{% else %}<span class="selo neutro">recebida</span>{% endif %}{% if f.origem == "demo" %} <span class="selo demo">demo</span>{% endif %}</td>
-      <td><a class="botao pequeno" href="{% url 'faturas:editar' f.pk %}">Editar</a></td></tr>
+  <tr data-href="{% url 'cadastro:uc' f.uc_id %}?aba=analise&fatura={{ f.pk }}">
+    <td class="principal-col" style="white-space:nowrap">{{ f.mes_referencia|date:"m/Y" }}</td>
+    <td><a href="{% url 'cadastro:uc' f.uc_id %}?aba=analise&fatura={{ f.pk }}" style="color:var(--text);font-weight:600">{{ f.uc }}</a><span class="sub">{{ f.uc.cliente }}</span></td>
+    <td style="white-space:nowrap">{{ f.data_leitura_anterior|date:"d/m" }} a {{ f.data_leitura_atual|date:"d/m" }}<span class="sub">{{ f.dias }} dias</span></td>
+    <td class="num">{{ f.consumo_kwh|ptbr:0 }} <span class="muted small">kWh</span></td>
+    <td class="num">{{ f.energia_injetada_kwh|ptbr:0 }} <span class="muted small">kWh</span></td>
+    <td class="num">{{ f.energia_compensada_kwh|ptbr:0 }} <span class="muted small">kWh</span></td>
+    <td class="num" style="font-weight:650">{{ f.valor_total|brl }}</td>
+    <td style="white-space:nowrap">{% if f.status == "divergente" %}{% include "components/status_pill.html" with tom="danger" texto="Divergência" %}{% elif f.status == "conferida" %}{% include "components/status_pill.html" with tom="ok" texto="Confere" %}{% elif f.status == "revisao" %}{% include "components/status_pill.html" with tom="solar" texto="Em revisão" %}{% else %}{% include "components/status_pill.html" with texto="Recebida" %}{% endif %}
+      {% if f.origem == "demo" %}<span class="sub">demonstração</span>{% endif %}</td>
+    <td class="num"><a class="btn btn-p" href="{% url 'faturas:editar' f.pk %}">Editar</a></td>
+  </tr>
   {% endfor %}</tbody>
 </table></div></section>
 {% else %}
-<div class="vazio"><p>Nenhuma fatura ainda.</p><a class="botao principal" href="{% url 'faturas:nova' %}{% if object.pk and object.numero_uc %}?uc={{ object.pk }}{% endif %}">Lançar fatura</a></div>
+{% url 'faturas:nova' as url_nova %}{% include "components/empty_state.html" with icone="receipt" titulo="Nenhuma fatura ainda" texto="Lance a primeira fatura para conferir a conta com o inversor e o medidor próprio." acao_url=url_nova acao_texto="Lançar fatura" %}
 {% endif %}
